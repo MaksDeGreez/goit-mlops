@@ -1,0 +1,41 @@
+.gitconfig
+
+# Terraform — state can contain secrets (ArgoCD admin password, cluster CA data).
+# This repo is public: never commit state.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+!*.example.tfvars
+# note: .terraform.lock.hcl IS committed on purpose (provider version pinning)
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+# note: .python-version IS committed on purpose (uv reproducibility)
+
+# Kubernetes / cloud credentials
+kubeconfig
+kubeconfig*.yaml
+*.kubeconfig
+.aws/
+*.pem
+*.key
+.env
+.env.*
+
+# macOS
+.DS_Store

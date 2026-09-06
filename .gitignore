@@ -6,6 +6,7 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+tfplan
 crash.log
 crash.*.log
 override.tf
@@ -36,6 +37,13 @@ kubeconfig*.yaml
 *.key
 .env
 .env.*
+
+# Submission archives at the repository root (the Lambda .zip files inside
+# lesson-10/terraform/lambda/ are tracked on purpose, so this is anchored to /)
+/*.zip
+
+# Output of gitlab-ci-local
+.gitlab-ci-local/
 
 # macOS
 .DS_Store

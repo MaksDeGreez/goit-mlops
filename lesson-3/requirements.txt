@@ -1,0 +1,5 @@
+# Pinned for Python 3.13 (see README: "Python version" section).
+# torch 2.7.0 <-> torchvision 0.22.0 is a matched pair; mismatched versions fail to load traced models.
+torch==2.7.0
+torchvision==0.22.0
+pillow==11.2.1

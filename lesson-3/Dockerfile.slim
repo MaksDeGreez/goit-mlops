@@ -1,0 +1,41 @@
+# "Slim" image: multi-stage build on the slim base.
+#
+# Stage 1 installs the dependencies with a compiler available; stage 2 keeps
+# only the installed packages and the few files inference actually reads.
+# The build toolchain, pip's cache and the project's source tooling never
+# reach the final image.
+
+# ---------- Stage 1: builder ----------
+FROM python:3.13-slim AS builder
+
+# --prefix puts everything pip installs into one folder, so the second stage
+# can copy it with a single line.
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ---------- Stage 2: runtime ----------
+FROM python:3.13-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# The official python images keep their packages in /usr/local, so the folder
+# from the builder stage fits exactly in the right place.
+COPY --from=builder /install /usr/local
+
+WORKDIR /app
+
+# Copy only what inference reads at runtime: the script, the traced model and
+# the sample image. No export script, no shell tooling, no docs.
+COPY app/ ./app/
+COPY model/ ./model/
+COPY example.jpg ./
+
+# Running as a normal user instead of root is safer and costs nothing here.
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+ENTRYPOINT ["python", "app/inference.py"]
+CMD ["example.jpg"]

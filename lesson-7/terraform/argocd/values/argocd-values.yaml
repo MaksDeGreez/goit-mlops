@@ -1,0 +1,72 @@
+# Values for the argo-cd Helm chart.
+# Everything that is specific to this project lives here and not in main.tf.
+
+global:
+  # Argo CD runs on the cpu-nodes group, which is the arm64 pool created in
+  # the previous assignment. The second node group carries a taint, so nothing
+  # can land there by accident anyway, but saying it here makes the intent clear.
+  nodeSelector:
+    workload: cpu
+
+# Dex handles logins through GitHub, Google and similar providers.
+# This project logs in with the local admin user only, so Dex is turned off
+# and the cluster runs one pod less.
+dex:
+  enabled: false
+
+configs:
+  params:
+    # The UI is reached through "kubectl port-forward", so the server does not
+    # need to serve HTTPS itself.
+    server.insecure: true
+
+  cm:
+    # How often Argo CD checks Git for new commits. The default is 3 minutes;
+    # 60 seconds makes the "git push and watch it appear" demo shorter.
+    timeout.reconciliation: 60s
+    # 0s means: never force a full refresh on a timer, only when Git changes.
+    timeout.hard.reconciliation: 0s
+
+  rbac:
+    # Anyone who logs in and is not mapped to a role can only look, not change.
+    policy.default: role:readonly
+    policy.csv: |
+      p, role:platform-admin, applications, *, */*, allow
+      p, role:platform-admin, repositories, get, *, allow
+      g, admin, role:platform-admin
+
+server:
+  # No load balancer and no public address. The service stays inside the
+  # cluster and is opened with port-forward when it is needed. This is the
+  # cheapest option and it keeps the UI off the internet.
+  service:
+    type: ClusterIP
+
+  extraArgs:
+    - --insecure
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+applicationSet:
+  # The ApplicationSet controller is what turns the namespace/* folders of the
+  # GitOps repository into Argo CD Applications.
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi

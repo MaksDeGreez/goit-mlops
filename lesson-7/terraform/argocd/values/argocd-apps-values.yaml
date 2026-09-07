@@ -1,0 +1,49 @@
+# Values for the argocd-apps Helm chart.
+# The chart creates no workload of its own: it only writes the ApplicationSet
+# object into the cluster.
+
+applicationsets:
+  namespaces:
+    namespace: ${namespace}
+
+    # Use Go templating, which is the current syntax in Argo CD.
+    goTemplate: true
+    goTemplateOptions:
+      - missingkey=error
+
+    generators:
+      # The git directory generator looks at the repository and creates one
+      # Argo CD Application per folder that matches the pattern below.
+      # A new folder under namespace/ therefore becomes a new Application
+      # without any change to this file.
+      - git:
+          repoURL: ${repo_url}
+          revision: ${revision}
+          directories:
+            - path: namespace/*
+
+    template:
+      metadata:
+        # The folder name becomes the Application name, for example
+        # namespace/application -> Application "application".
+        name: '{{.path.basename}}'
+      spec:
+        project: default
+
+        source:
+          repoURL: ${repo_url}
+          targetRevision: ${revision}
+          path: '{{.path.path}}'
+
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: '{{.path.basename}}'
+
+        syncPolicy:
+          automated:
+            # Remove objects that were deleted from Git.
+            prune: true
+            # Put back objects that were changed by hand in the cluster.
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true

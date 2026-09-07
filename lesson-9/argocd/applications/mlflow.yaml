@@ -68,12 +68,20 @@ spec:
             value: gpu
             effect: NoSchedule
 
+        # MLflow 3 serves the API with uvicorn and starts several worker
+        # processes by default. Each worker loads its own copy of MLflow, and
+        # together they used more than 1 GiB, so the container was killed by the
+        # kernel (OOMKilled). One worker is plenty for a single user, and the
+        # limit is raised to give it room.
+        extraArgs:
+          workers: "1"
+
         resources:
           requests:
             cpu: 100m
             memory: 512Mi
           limits:
-            memory: 1Gi
+            memory: 2Gi
 
   destination:
     server: https://kubernetes.default.svc

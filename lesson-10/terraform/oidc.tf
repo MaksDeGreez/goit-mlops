@@ -5,6 +5,11 @@
 # of storing an access key in the repository. The repository is public, so no
 # secret may be stored in it.
 
+locals {
+  repo_owner = split("/", var.github_repository)[0]
+  repo_name  = split("/", var.github_repository)[1]
+}
+
 resource "aws_iam_openid_connect_provider" "github" {
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
@@ -31,10 +36,19 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # GitHub describes this claim as "repo:owner/name:ref:refs/heads/branch", but
+    # it now also sends a longer form that includes the numeric id of the owner
+    # and of the repository, for example:
+    #   repo:owner@178340907/name@1359527131:ref:refs/heads/lesson-10
+    # Both forms are accepted here, so the role keeps working either way. The
+    # branch is still fixed, so only this branch of this repository can use it.
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
+      values = [
+        "repo:${var.github_repository}:ref:refs/heads/${var.github_branch}",
+        "repo:${local.repo_owner}@*/${local.repo_name}@*:ref:refs/heads/${var.github_branch}",
+      ]
     }
   }
 }

@@ -140,11 +140,30 @@ The role can only be used by this exact repository and branch. This is the condi
 
 ```hcl
 condition {
-  test     = "StringEquals"
+  test     = "StringLike"
   variable = "token.actions.githubusercontent.com:sub"
-  values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
+  values = [
+    "repo:${var.github_repository}:ref:refs/heads/${var.github_branch}",
+    "repo:${local.repo_owner}@*/${local.repo_name}@*:ref:refs/heads/${var.github_branch}",
+  ]
 }
 ```
+
+There are two patterns because GitHub sends this claim in two shapes. The documented one is
+`repo:owner/name:ref:refs/heads/branch`, but the token that arrived in the first run of this pipeline
+looked like this:
+
+```
+repo:MaksDeGreez@178340907/goit-mlops@1359527131:ref:refs/heads/lesson-10
+```
+
+GitHub adds the numeric id of the owner and of the repository. A check with `StringEquals` on the
+documented shape does not match that string, and the first run failed with
+`Not authorized to perform sts:AssumeRoleWithWebIdentity`. The exact claim was found in CloudTrail,
+in the `AssumeRoleWithWebIdentity` event. `StringLike` with both patterns accepts either shape.
+
+The wildcards are only in place of the numeric ids, so the rule is still strict: another owner,
+another repository or another branch does not match.
 
 The role is also allowed to do very little: start this one state machine and read the result of the
 run. It cannot create, change or delete anything.

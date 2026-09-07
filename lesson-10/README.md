@@ -393,8 +393,10 @@ jobs:
 - Branch: [`lesson-10`](https://github.com/MaksDeGreez/goit-mlops/tree/lesson-10)
 - The archive is created from the root of the repository:
 
+  The GitHub Actions workflow is included as well, because it lives outside this folder:
+
   ```bash
-  zip -r ДЗ10_Слєпцов_Максім.zip lesson-10/ \
+  zip -r ДЗ10_Слєпцов_Максім.zip lesson-10/ .github/workflows/train-model.yml \
     -x "lesson-10/terraform/.terraform/*" \
        "lesson-10/terraform/.terraform.lock.hcl" \
        "lesson-10/terraform/terraform.tfstate*" \

@@ -21,6 +21,16 @@ import shutil
 import sys
 from pathlib import Path
 
+# MLflow can hand the client a presigned URL and let it download the model
+# straight from the object store, which saves the server some work. Here that
+# URL points at "minio.mlflow.svc.cluster.local", an address that only exists
+# inside the cluster, so the download would fail on a laptop and leave an empty
+# file behind. Turning the option off makes the download go through the MLflow
+# server, which is reachable through the port-forward.
+#
+# This has to be set before mlflow is imported.
+os.environ.setdefault("MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD", "false")
+
 import mlflow
 from mlflow.exceptions import MlflowException
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
@@ -99,6 +109,16 @@ def copy_best_model(best):
         dst_path=str(BEST_MODEL_DIR),
     )
 
+    # A failed download can still leave files of the right size filled with
+    # nothing, so check that something real arrived.
+    files = sorted(f for f in BEST_MODEL_DIR.rglob("*") if f.is_file())
+    if not files:
+        raise RuntimeError(f"nothing was downloaded into {BEST_MODEL_DIR}")
+    for f in files:
+        if not f.read_bytes().strip():
+            raise RuntimeError(f"{f} was downloaded but is empty")
+    return files
+
 
 def main():
     print(f"MLflow:      {TRACKING_URI}")
@@ -172,8 +192,10 @@ def main():
     print(f"  accuracy {best['accuracy']:.4f}")
     print(f"  loss     {best['loss']:.4f}")
 
-    copy_best_model(best)
+    files = copy_best_model(best)
     print(f"\nBest model copied to {BEST_MODEL_DIR}")
+    for f in files:
+        print(f"  {f.relative_to(BEST_MODEL_DIR)}  ({f.stat().st_size} bytes)")
 
     return 0
 

@@ -160,6 +160,20 @@ kubectl -n monitoring port-forward svc/pushgateway 9091:9091
 MinIO needs no port-forward. MLflow is started with `--serve-artifacts`, so the
 client uploads the models through MLflow and only MLflow talks to MinIO.
 
+There is one catch on the way back. When MLflow stores artifacts in an S3-like
+store, it offers the client a direct download link to that store instead of
+sending the file itself. The link points at
+`minio.mlflow.svc.cluster.local:9000`, which only resolves inside the cluster,
+so on a laptop the download fails and leaves a file of the right size with
+nothing in it. The script therefore sets
+
+```
+MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false
+```
+
+before it imports `mlflow`, which makes the download go through the MLflow
+server. It also checks afterwards that the downloaded files are not empty.
+
 ### 3. Run the training
 
 ```bash

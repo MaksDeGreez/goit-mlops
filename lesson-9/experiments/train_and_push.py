@@ -19,6 +19,7 @@ What it does:
 import os
 import shutil
 import sys
+import urllib.request
 from pathlib import Path
 
 # MLflow can hand the client a presigned URL and let it download the model
@@ -55,6 +56,39 @@ C_VALUES = [0.01, 0.1, 1.0, 10.0]
 MAX_ITER_VALUES = [100, 500]
 
 RANDOM_STATE = 42
+
+
+def check_services():
+    """Make sure both port-forwards are open before any training starts.
+
+    Without this the script would train a model, log it, and only then fail on
+    the push, leaving a half-finished experiment behind.
+    """
+    problems = []
+
+    try:
+        urllib.request.urlopen(f"{TRACKING_URI}/health", timeout=5)
+    except Exception as exc:
+        problems.append(
+            f"MLflow is not answering at {TRACKING_URI} ({exc}).\n"
+            f"    Start it with: kubectl -n mlflow port-forward svc/mlflow 5000:5000"
+        )
+
+    try:
+        urllib.request.urlopen(f"http://{PUSHGATEWAY}/metrics", timeout=5)
+    except Exception as exc:
+        problems.append(
+            f"PushGateway is not answering at {PUSHGATEWAY} ({exc}).\n"
+            f"    Start it with: kubectl -n monitoring port-forward svc/pushgateway 9091:9091"
+        )
+
+    if problems:
+        print("Cannot start:\n")
+        for problem in problems:
+            print(f"  - {problem}")
+        return False
+
+    return True
 
 
 def push_metrics(run_id, c, max_iter, accuracy, loss):
@@ -124,6 +158,9 @@ def main():
     print(f"MLflow:      {TRACKING_URI}")
     print(f"PushGateway: {PUSHGATEWAY}")
     print()
+
+    if not check_services():
+        return 1
 
     mlflow.set_tracking_uri(TRACKING_URI)
     try:

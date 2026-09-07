@@ -1,0 +1,79 @@
+# Starts the training pipeline in AWS after every push to the lesson-10 branch.
+#
+# The workflow does not store any AWS key. It asks GitHub for a short lived
+# token and exchanges it for temporary AWS credentials (OIDC). The role and the
+# state machine are created by Terraform in lesson-10/terraform.
+name: train-model
+
+on:
+  push:
+    branches:
+      - lesson-10
+    paths:
+      - "lesson-10/**"
+      - ".github/workflows/train-model.yml"
+  workflow_dispatch:
+
+# id-token: write is what allows the job to request the OIDC token.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  train-model:
+    name: Start the training pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Get temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: github-actions-train-model
+
+      - name: Start the Step Functions execution
+        id: start
+        run: |
+          set -euo pipefail
+
+          # The input of the workflow. The commit is passed on so that every
+          # pipeline run can be traced back to the code that started it.
+          INPUT=$(printf '{"source":"github-actions","commit":"%s","rows":150}' "${GITHUB_SHA:0:7}")
+          echo "Input: $INPUT"
+
+          EXECUTION_ARN=$(aws stepfunctions start-execution \
+            --state-machine-arn "${{ vars.STATE_MACHINE_ARN }}" \
+            --name "train-$(date +%s)" \
+            --input "$INPUT" \
+            --query executionArn --output text)
+
+          echo "Started: $EXECUTION_ARN"
+          echo "execution_arn=$EXECUTION_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the pipeline to finish
+        run: |
+          set -euo pipefail
+
+          EXECUTION_ARN="${{ steps.start.outputs.execution_arn }}"
+
+          # The pipeline takes a few seconds, so a short poll is enough.
+          for attempt in $(seq 1 30); do
+            STATUS=$(aws stepfunctions describe-execution \
+              --execution-arn "$EXECUTION_ARN" --query status --output text)
+            echo "Attempt $attempt: $STATUS"
+            [ "$STATUS" != "RUNNING" ] && break
+            sleep 5
+          done
+
+          echo "Result of the pipeline:"
+          aws stepfunctions describe-execution \
+            --execution-arn "$EXECUTION_ARN" --query output --output text
+
+          if [ "$STATUS" != "SUCCEEDED" ]; then
+            echo "The pipeline finished with status $STATUS"
+            exit 1
+          fi

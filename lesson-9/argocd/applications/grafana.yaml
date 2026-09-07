@@ -1,0 +1,57 @@
+# Grafana, with Prometheus already configured as a data source, so
+# Explore works straight after login without any clicking.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: infra-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 10.5.15
+
+    helm:
+      values: |
+        persistence:
+          enabled: false
+
+        service:
+          type: ClusterIP
+          port: 80
+
+        # adminPassword is left unset on purpose. The chart then generates a
+        # random one and stores it in the "grafana" secret, the same way Argo CD
+        # does. The README shows how to read it.
+
+        datasources:
+          datasources.yaml:
+            apiVersion: 1
+            datasources:
+              - name: Prometheus
+                type: prometheus
+                access: proxy
+                url: http://prometheus-server.monitoring.svc.cluster.local
+                isDefault: true
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

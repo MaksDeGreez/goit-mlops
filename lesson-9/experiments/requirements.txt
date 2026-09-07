@@ -1,0 +1,5 @@
+# The MLflow client version matches the server version deployed by the
+# mlflow Helm chart (appVersion 3.16.0), so client and server always agree.
+mlflow==3.16.0
+scikit-learn==1.9.0
+prometheus-client==0.26.0

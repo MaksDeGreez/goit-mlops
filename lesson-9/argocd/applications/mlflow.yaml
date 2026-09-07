@@ -1,0 +1,87 @@
+# MLflow Tracking Server.
+#
+# It stores experiments, runs, parameters and metrics in PostgreSQL, and the
+# model files in MinIO. Both of those are separate Applications in wave 0, so
+# they exist before this one starts.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlflow
+  namespace: infra-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+
+  source:
+    repoURL: https://community-charts.github.io/helm-charts
+    chart: mlflow
+    targetRevision: 1.11.7
+
+    helm:
+      values: |
+        backendStore:
+          # Create and update the MLflow tables in PostgreSQL automatically.
+          databaseMigration: true
+          # An init container that waits until PostgreSQL answers, so MLflow
+          # does not crash-loop while the database is still starting.
+          databaseConnectionCheck: true
+          postgres:
+            enabled: true
+            host: postgres.mlflow.svc.cluster.local
+            port: 5432
+            database: mlflow
+            user: mlflow
+            password: mlflow-demo-password
+            driver: psycopg2
+
+        artifactRoot:
+          # With proxied storage the client uploads artifacts through the
+          # MLflow server, and MLflow talks to MinIO. That means the training
+          # script only needs one port-forward, and MinIO is never exposed.
+          proxiedArtifactStorage: true
+          s3:
+            enabled: true
+            bucket: mlflow-artifacts
+            awsAccessKeyId: mlflowadmin
+            awsSecretAccessKey: minio-demo-password
+
+        extraEnvVars:
+          # Point the S3 client at MinIO instead of the real AWS S3.
+          MLFLOW_S3_ENDPOINT_URL: http://minio.mlflow.svc.cluster.local:9000
+          AWS_DEFAULT_REGION: us-east-1
+
+        service:
+          type: ClusterIP
+          # The chart uses port 80 by default; the assignment asks for 5000.
+          port: 5000
+
+        # MLflow is the ML workload of this project, so it runs on the second
+        # node group created in the EKS assignment. That group is labelled
+        # workload=gpu and carries a matching taint, so a pod only lands there
+        # if it asks for it with both a nodeSelector and a toleration.
+        nodeSelector:
+          workload: gpu
+        tolerations:
+          - key: workload
+            operator: Equal
+            value: gpu
+            effect: NoSchedule
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            memory: 1Gi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlflow
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

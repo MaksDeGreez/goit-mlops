@@ -1,0 +1,64 @@
+# MinIO — S3-compatible object storage. MLflow keeps the trained models here,
+# in the bucket "mlflow-artifacts".
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio
+  namespace: infra-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://charts.min.io/
+    chart: minio
+    targetRevision: 5.4.0
+
+    helm:
+      values: |
+        # The chart installs a 16-node distributed cluster by default, and each
+        # node asks for 16 GiB of memory. That is far too much here, so this
+        # runs a single standalone server.
+        mode: standalone
+        replicas: 1
+
+        # No PersistentVolumeClaim: the cluster has no EBS CSI driver, so a PVC
+        # would never be bound. The bucket lives in a temporary volume, which is
+        # fine because the models are also tracked in MLflow.
+        persistence:
+          enabled: false
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            memory: 1Gi
+
+        # Demo credentials. See the README for how this would be handled in a
+        # real project.
+        rootUser: mlflowadmin
+        rootPassword: minio-demo-password
+
+        # The chart runs a job after the install that creates the buckets.
+        buckets:
+          - name: mlflow-artifacts
+            policy: none
+            purge: false
+
+        service:
+          type: ClusterIP
+        consoleService:
+          type: ClusterIP
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlflow
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

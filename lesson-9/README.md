@@ -228,6 +228,59 @@ kubectl -n monitoring port-forward svc/prometheus-server 9090:80
 
 then open <http://localhost:9090/targets> and look for the `pushgateway` job.
 
+## What the run produced
+
+The eight runs, as they appear in MLflow:
+
+| C | max_iter | accuracy | loss |
+|---|---|---|---|
+| 0.01 | 100 | 0.8000 | 0.6455 |
+| 0.01 | 500 | 0.8000 | 0.6455 |
+| 0.1 | 100 | 0.9667 | 0.3499 |
+| 0.1 | 500 | 0.9667 | 0.3499 |
+| 1.0 | 100 | 0.9667 | 0.1589 |
+| 1.0 | 500 | 0.9667 | 0.1589 |
+| **10.0** | **100** | **1.0000** | **0.0754** |
+| 10.0 | 500 | 1.0000 | 0.0759 |
+
+Two things are worth noticing. A stronger `C` means weaker regularisation, and on
+this small dataset that keeps helping all the way to the end. And `max_iter`
+changes almost nothing, because the solver already stops early for the low
+values of `C`; only at `C=10.0` does it still want more steps, which is why
+scikit-learn prints a convergence warning there.
+
+The best run wins on accuracy, and the tie with the other `C=10.0` run is broken
+by the lower loss:
+
+```
+Best run:
+  run_id   0a4d47df83c44d36abcf7e05f97a6b34
+  C        10.0
+  max_iter 100
+  accuracy 1.0000
+  loss     0.0754
+
+Best model copied to .../lesson-9/best_model
+  MLmodel  (681 bytes)
+  conda.yaml  (198 bytes)
+  model.skops  (8981 bytes)
+  python_env.yaml  (98 bytes)
+  registered_model_meta  (37 bytes)
+  requirements.txt  (89 bytes)
+```
+
+Both metrics arrive in Prometheus as eight separate series, one per run:
+
+```
+mlflow_accuracy{c="10.0", max_iter="100", run_id="0a4d47df83c4...", job="mlflow_training"}  1
+mlflow_loss{c="10.0", max_iter="100", run_id="0a4d47df83c4...", job="mlflow_training"}      0.0754
+```
+
+The `run_id`, `c` and `max_iter` labels survive the trip only because Prometheus
+scrapes PushGateway with `honor_labels: true`. Without it Prometheus would
+replace them with its own job and instance labels and every run would look the
+same.
+
 ## Screenshots
 
 | File | What it shows |

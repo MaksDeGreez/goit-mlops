@@ -1,0 +1,58 @@
+# PostgreSQL is the backend store of MLflow: it holds experiments, runs,
+# parameters and metrics. The artifacts (the models themselves) go to MinIO.
+#
+# There is no Helm chart here on purpose. The usual choice would be the Bitnami
+# PostgreSQL chart, but Bitnami removed its free images from Docker Hub, so
+# "bitnami/postgresql:17" can no longer be pulled. The official "postgres"
+# image is small, has an arm64 build and needs only these three files.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: mlflow
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres
+          env:
+            # The data directory has to be a sub-folder of the mount point,
+            # otherwise Postgres refuses to start on a non-empty volume.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "mlflow", "-d", "mlflow"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        # emptyDir, not a PersistentVolumeClaim. The cluster has no EBS CSI
+        # driver installed, so a PVC would stay "Pending" forever. The data is
+        # only needed while the exercise runs, so a temporary volume is enough.
+        - name: data
+          emptyDir: {}

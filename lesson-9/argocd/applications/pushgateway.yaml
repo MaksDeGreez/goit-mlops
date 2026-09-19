@@ -1,0 +1,48 @@
+# Prometheus PushGateway.
+#
+# The training script is a short job: it finishes long before Prometheus would
+# scrape it. PushGateway solves that. The script pushes its metrics here, and
+# Prometheus scrapes PushGateway instead.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pushgateway
+  namespace: infra-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-pushgateway
+    targetRevision: 3.8.0
+
+    helm:
+      values: |
+        # Without this the service would be called "pushgateway-prometheus-pushgateway".
+        # The short name gives exactly the address named in the assignment:
+        # http://pushgateway.monitoring.svc.cluster.local:9091
+        fullnameOverride: pushgateway
+
+        service:
+          type: ClusterIP
+          port: 9091
+
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

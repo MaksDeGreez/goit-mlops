@@ -1,0 +1,31 @@
+# PostgreSQL — the backend store of MLflow.
+#
+# This Application does not use a Helm chart. It points at a folder of plain
+# Kubernetes manifests in this same repository, which Argo CD applies directly.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres
+  namespace: infra-tools
+  annotations:
+    # Wave 0 is applied before wave 1. MLflow is in wave 1, so the database is
+    # ready before MLflow tries to connect to it.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/MaksDeGreez/goit-mlops.git
+    targetRevision: lesson-9
+    path: lesson-9/manifests/postgres
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlflow
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

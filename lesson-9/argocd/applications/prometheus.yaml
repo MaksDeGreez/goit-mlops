@@ -1,0 +1,72 @@
+# Prometheus.
+#
+# No assignment in this course installs Prometheus or Grafana, but this
+# assignment asks to see the metrics in Grafana, so both are added here.
+#
+# This is the plain Prometheus chart, not kube-prometheus-stack. It is much
+# smaller, installs no CustomResourceDefinitions and no operator, and it is all
+# that is needed to scrape PushGateway.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: infra-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus
+    targetRevision: 29.27.2
+
+    helm:
+      values: |
+        server:
+          persistentVolume:
+            # The chart wants a PersistentVolume by default. There is no EBS CSI
+            # driver in this cluster, so the pod would wait for a volume for ever.
+            enabled: false
+          # A few hours is plenty: the cluster is deleted at the end of the session.
+          retention: 6h
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          service:
+            type: ClusterIP
+
+        # These sub-charts are not needed for this assignment.
+        alertmanager:
+          enabled: false
+        kube-state-metrics:
+          enabled: false
+        prometheus-node-exporter:
+          enabled: false
+        # PushGateway is installed by its own Application, as the assignment asks.
+        prometheus-pushgateway:
+          enabled: false
+
+        extraScrapeConfigs: |
+          - job_name: pushgateway
+            # Without honor_labels Prometheus would overwrite the labels that
+            # come from PushGateway with its own job and instance labels, and
+            # the run_id of every training run would be lost.
+            honor_labels: true
+            static_configs:
+              - targets:
+                  - pushgateway.monitoring.svc.cluster.local:9091
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,28 @@
+# "Fat" image: the straightforward, unoptimised build.
+#
+# It is deliberately wasteful so that the comparison in report.md has something
+# to measure. Every line marked ANTI-PATTERN is a mistake made on purpose.
+FROM python:3.13
+
+WORKDIR /app
+
+# BAD ON PURPOSE: a compiler is only needed to build packages, not to run them.
+# The apt package lists are also left inside the image.
+RUN apt-get update && apt-get install -y \
+        build-essential \
+        git \
+        curl \
+        wget \
+        vim
+
+# BAD ON PURPOSE: without --no-cache-dir pip keeps all downloaded files
+# (128 MB) inside the image.
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# BAD ON PURPOSE: copy the whole folder, including the export script, the
+# shell script and the documentation. None of them are needed to run inference.
+COPY . .
+
+ENTRYPOINT ["python", "app/inference.py"]
+CMD ["example.jpg"]

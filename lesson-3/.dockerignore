@@ -1,0 +1,42 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python bytecode and caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build and package caches
+.cache/
+pip-wheel-metadata/
+*.egg-info/
+build/
+dist/
+
+# Archives (submission zips must never end up inside an image)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Local logs and editor/OS noise
+install.log
+*.log
+.DS_Store
+.idea/
+.vscode/

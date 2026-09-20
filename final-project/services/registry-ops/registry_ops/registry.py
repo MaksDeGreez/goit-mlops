@@ -97,6 +97,13 @@ def set_version_tags(client: MlflowClient, model: str, version: str, tags: dict[
         client.set_model_version_tag(model, version, key, str(value))
 
 
+def clear_version_tag(client: MlflowClient, model: str, version: str, key: str) -> None:
+    """Remove a tag if the version has it."""
+    found = get_version(client, model, version)
+    if found is not None and key in (found.tags or {}):
+        client.delete_model_version_tag(model, version, key)
+
+
 def delete_version(client: MlflowClient, model: str, version: str) -> None:
     client.delete_model_version(model, version)
 

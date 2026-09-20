@@ -27,6 +27,7 @@ from registry_ops.registry import (
     alias_version,
     aliases_of_model,
     all_versions,
+    clear_version_tag,
     delete_version,
     drop_aliases_of_version,
     get_version,
@@ -34,6 +35,8 @@ from registry_ops.registry import (
     set_stage,
     set_version_tags,
 )
+
+ARCHIVED_AT_TAG = "archived_at"
 
 PROMOTE = "promote"
 ROLLBACK = "rollback"
@@ -82,7 +85,7 @@ def _archive(client: MlflowClient, settings: Settings, version: str) -> dict:
     model = settings.model_name
     from_stage = _require_stage(client, model, version)
     set_stage(client, model, version, ARCHIVED_STAGE)
-    set_version_tags(client, model, version, {"archived_at": utc_now_iso()})
+    set_version_tags(client, model, version, {ARCHIVED_AT_TAG: utc_now_iso()})
     set_alias(client, model, PREVIOUS_PRODUCTION_ALIAS, version)
     return _line(
         settings,
@@ -105,6 +108,9 @@ def _make_production(
 ) -> dict:
     """Give the version the production alias, the stage and the tags."""
     model = settings.model_name
+    # A version coming back from a rollback still carries the moment it was
+    # archived. It is in production again, so that tag would be a lie.
+    clear_version_tag(client, model, version, ARCHIVED_AT_TAG)
     set_alias(client, model, PRODUCTION_ALIAS, version)
     set_stage(client, model, version, PRODUCTION_STAGE)
     set_version_tags(

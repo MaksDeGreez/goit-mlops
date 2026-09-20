@@ -74,7 +74,8 @@ aliases that point at it, because MLflow keeps an alias when the version behind 
 looking that alias up afterwards fails.
 
 Promoting a version writes three tags on it: `promoted_at`, `promoted_by` and `promoted_git_sha`.
-Archiving writes `archived_at`.
+Archiving writes `archived_at`. A version that comes back from a rollback loses `archived_at`
+again, because it is in production and the tag would say the opposite.
 
 ## Output
 
@@ -118,7 +119,7 @@ database driver for that, so `sqlalchemy` and `alembic` are dev dependencies.
 uv run pytest
 ```
 
-28 tests, about 14 seconds. They run against a registry in a temporary SQLite file with three model
+29 tests, about 15 seconds. They run against a registry in a temporary SQLite file with three model
 versions that look like the ones the training job leaves behind. The versions point at a folder
 that does not exist: no model is ever loaded here, so no model has to be trained for the tests.
 

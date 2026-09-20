@@ -106,6 +106,17 @@ def test_rollback_brings_the_previous_production_version_back(client, settings):
     assert previous_production_version(client, MODEL) == "2"
 
 
+def test_a_version_back_in_production_loses_its_archived_at_tag(client, settings):
+    promote(client, settings, "1")
+    promote(client, settings, "2")
+    assert "archived_at" in tags_of(client, "1")
+
+    rollback(client, settings)
+
+    assert "archived_at" not in tags_of(client, "1")
+    assert "archived_at" in tags_of(client, "2")
+
+
 def test_a_second_rollback_undoes_the_first(client, settings):
     promote(client, settings, "1")
     promote(client, settings, "2")

@@ -28,5 +28,10 @@ target-version = "py313"
 # UP: newer Python syntax, SIM: simpler code.
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
+[tool.ruff.lint.isort]
+# Every service under services/ is a small package of its own. Without this
+# ruff sorts its imports as if they came from PyPI.
+known-first-party = ["drift_monitor", "inference", "registry_ops", "training"]
+
 [tool.ruff.format]
 docstring-code-format = true

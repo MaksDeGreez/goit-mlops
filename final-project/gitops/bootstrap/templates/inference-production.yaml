@@ -30,6 +30,12 @@ spec:
           value: {{ .Values.addresses.mlflow | quote }}
         - name: prometheusAddress
           value: {{ .Values.addresses.prometheus | quote }}
+        # The commit this sync is applying. Argo CD replaces the variable
+        # itself before it calls Helm, so the registry hook Job can write the
+        # commit that asked for the promotion into the audit line. Staging
+        # does not need it: nothing there changes the registry.
+        - name: gitSha
+          value: "$ARGOCD_APP_REVISION"
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ .Values.namespaces.production }}

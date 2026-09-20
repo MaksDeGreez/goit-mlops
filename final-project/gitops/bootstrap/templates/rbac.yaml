@@ -8,6 +8,10 @@
 # There is no destination namespace here on purpose. Some of these objects are
 # cluster wide and the namespaced ones each name their own namespace, so
 # adding one would only be a second source of truth.
+#
+# The folder is a flat list of single-document files. Some of them are
+# ClusterRoles and ClusterRoleBindings, which an Argo CD project has to allow;
+# the "default" project allows every resource, so nothing extra is needed.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

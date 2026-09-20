@@ -1,0 +1,28 @@
+# The dashboards, wave 2.
+#
+# A kustomize directory: it turns the three JSON files into ConfigMaps with
+# the label grafana_dashboard: "1". The sidecar in the Grafana pod watches for
+# that label and copies them in, so a dashboard can be changed without
+# restarting Grafana.
+#
+# Argo CD sees the kustomization.yaml in the folder and uses kustomize by
+# itself; nothing has to be configured here.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: {{ .Values.basePath }}/gitops/apps/grafana-dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

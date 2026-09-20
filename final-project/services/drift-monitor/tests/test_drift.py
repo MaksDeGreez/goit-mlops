@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 
 from drift_monitor.drift import (
@@ -9,6 +11,7 @@ from drift_monitor.drift import (
     check_drift,
     default_reference_path,
     load_features,
+    repo_file,
 )
 
 
@@ -61,6 +64,19 @@ def test_the_reference_file_is_found_in_the_repository():
 
     assert path.is_file()
     assert path.name == "reference.csv"
+
+
+def test_repo_file_walks_four_folders_up():
+    path = repo_file("/repo/final-project/services/drift-monitor/drift_monitor/drift.py", "data")
+
+    assert path == pathlib.Path("/repo/final-project/data")
+
+
+def test_repo_file_survives_a_package_close_to_the_root():
+    """Inside the image the package is /app/drift_monitor, so there is no
+    fourth parent. The path is then wrong and unused, but it must not raise:
+    it is computed while the module is imported."""
+    assert repo_file("/app/drift_monitor/drift.py", "data") == pathlib.Path("/data")
 
 
 def test_loading_a_csv_keeps_only_the_feature_columns():

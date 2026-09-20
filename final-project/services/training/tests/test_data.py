@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pathlib
+
 import pandas as pd
 import pytest
 from sklearn.model_selection import train_test_split
@@ -12,6 +14,7 @@ from training.data import (
     default_data_path,
     file_sha256,
     load_dataset,
+    repo_file,
     validate_dataset,
 )
 from training.preprocess import RANDOM_SEED, TEST_SIZE
@@ -111,6 +114,19 @@ def test_load_dataset_reports_a_missing_file(tmp_path):
 
 def test_default_data_path_finds_the_snapshot_in_the_repository():
     assert default_data_path() == REPO_DATA_PATH
+
+
+def test_repo_file_walks_four_folders_up():
+    path = repo_file("/repo/final-project/services/training/training/data.py", "data")
+
+    assert path == pathlib.Path("/repo/final-project/data")
+
+
+def test_repo_file_survives_a_package_close_to_the_root():
+    """Inside the image the package is /app/training, so there is no fourth
+    parent. The path is then simply wrong and unused, but it must not raise:
+    it is computed while the module is imported."""
+    assert repo_file("/app/training/data.py", "data") == pathlib.Path("/data")
 
 
 def test_reference_rows_come_from_the_train_split():

@@ -27,11 +27,24 @@ EXPECTED_COLUMNS = [*FEATURE_COLUMNS, TARGET_COLUMN]
 # The image is built with `final-project/` as the build context and everything
 # is copied to /app, so in a container the snapshot is here.
 CONTAINER_DATA_PATH = Path("/app/data/california_housing.csv")
-# Outside a container the same file is four levels up:
-# services/training/training/data.py -> final-project/data/
-REPO_DATA_PATH = Path(__file__).resolve().parents[3] / "data" / "california_housing.csv"
 
 READ_CHUNK_BYTES = 1024 * 1024
+
+
+def repo_file(module_file: str | Path, *parts: str) -> Path:
+    """A file in `final-project/`, seen from a module of this service.
+
+    `services/training/training/data.py` is four folders below
+    `final-project/`. The `.parent` chain is used instead of `.parents[3]`
+    because it stops at "/" instead of raising: inside the image the package
+    sits at `/app/training/`, where a fourth parent does not exist.
+    """
+    root = Path(module_file).resolve().parent.parent.parent.parent
+    return root.joinpath(*parts)
+
+
+# Where the same file is when the code runs from a git checkout.
+REPO_DATA_PATH = repo_file(__file__, "data", "california_housing.csv")
 
 
 def default_data_path() -> Path:

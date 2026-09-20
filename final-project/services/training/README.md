@@ -108,7 +108,7 @@ size filled with spaces.
 uv run pytest
 ```
 
-53 tests, about 10 seconds. The unit tests cover the data checks, every preprocessing function, the
+55 tests, about 10 seconds. The unit tests cover the data checks, every preprocessing function, the
 pipeline and the checksum helper. `tests/test_run_integration.py` starts the job as a subprocess
 twice against a temporary SQLite-backed MLflow and checks the JSON line, the metrics in the run,
 all seven tags, the alias and the stage, that the second run creates version 2 and moves the alias,

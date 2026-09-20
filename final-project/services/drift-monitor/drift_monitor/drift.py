@@ -38,8 +38,22 @@ COLUMN_METRIC = "ValueDrift"
 
 # The image is built with `final-project/` as the build context.
 CONTAINER_REFERENCE_PATH = Path("/app/data/reference.csv")
-# services/drift-monitor/drift_monitor/drift.py -> final-project/data/
-REPO_REFERENCE_PATH = Path(__file__).resolve().parents[3] / "data" / "reference.csv"
+
+
+def repo_file(module_file: str | Path, *parts: str) -> Path:
+    """A file in `final-project/`, seen from a module of this service.
+
+    `services/drift-monitor/drift_monitor/drift.py` is four folders below
+    `final-project/`. The `.parent` chain is used instead of `.parents[3]`
+    because it stops at "/" instead of raising: inside the image the package
+    sits at `/app/drift_monitor/`, where a fourth parent does not exist.
+    """
+    root = Path(module_file).resolve().parent.parent.parent.parent
+    return root.joinpath(*parts)
+
+
+# Where the same file is when the code runs from a git checkout.
+REPO_REFERENCE_PATH = repo_file(__file__, "data", "reference.csv")
 
 
 @dataclass

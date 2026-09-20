@@ -137,7 +137,7 @@ line and the traceback on stderr, so stdout stays one JSON object per line.
 uv run pytest
 ```
 
-29 tests, about 3 seconds, and **no network**: the Loki answer is a fixture file
+31 tests, about 3 seconds, and **no network**: the Loki answer is a fixture file
 (`tests/fixtures/loki_query_range.json`) with two streams, a `request` event and a line cut in half,
 and the PushGateway call is replaced in every test. The drift tests use the real reference file: a
 sample of it must show no drift, and the same sample with three features moved must show exactly

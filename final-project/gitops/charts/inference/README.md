@@ -188,7 +188,7 @@ helm template inference-production charts/inference -n production \
 ```bash
 helm template inference-production charts/inference -n production \
   -f envs/production.yaml --set imageRegistry=$REG --set modelVersion=4 \
-  | kubeconform -strict -summary -kubernetes-version 1.32.0 \
+  | kubeconform -strict -summary -kubernetes-version 1.35.0 \
       -schema-location default \
       -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' -
 ```

@@ -62,5 +62,5 @@ REG=111122223333.dkr.ecr.us-east-1.amazonaws.com   # any value, it is only a str
 
 helm lint charts/drift-monitor --set imageRegistry=$REG
 helm template drift-monitor charts/drift-monitor -n mlops-system --set imageRegistry=$REG \
-  | kubeconform -strict -summary -kubernetes-version 1.32.0 -schema-location default -
+  | kubeconform -strict -summary -kubernetes-version 1.35.0 -schema-location default -
 ```

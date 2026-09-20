@@ -159,5 +159,5 @@ kubectl auth can-i --list -n production --as=test --as-group=mlops-engineers
 
 ```bash
 cd final-project
-kubeconform -strict -summary -kubernetes-version 1.32.0 -schema-location default rbac/*.yaml
+kubeconform -strict -summary -kubernetes-version 1.35.0 -schema-location default rbac/*.yaml
 ```

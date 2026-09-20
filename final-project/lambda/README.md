@@ -50,8 +50,13 @@ No AWS and no network:
 
 ```bash
 cd final-project/lambda
-uv run --no-project --python 3.13 --with pytest pytest
+uv sync --locked
+uv run pytest
 ```
+
+The two handlers need nothing at run time, so `uv.lock` pins only pytest and
+what pytest brings with it. It is committed anyway, so CI installs exactly the
+versions that were used here.
 
 49 tests: the input checks, the parameter allow list, the job name limit of 63
 characters, the log parsing for both log shapes, the missing-result case and

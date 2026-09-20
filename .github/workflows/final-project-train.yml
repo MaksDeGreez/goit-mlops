@@ -1,0 +1,206 @@
+# Train a new model version.
+#
+# This is a separate pipeline with its own trigger on purpose. Training a model
+# and deploying a model are two different things: a deployment should not
+# retrain, and a training run should not change what production serves. The run
+# ends with a new version in the MLflow Model Registry under the alias
+# "staging", and staging picks it up by itself within a minute.
+#
+# What it does: assume the CI role with OIDC, start the Step Functions state
+# machine, wait for it, and print the result of the run into the job summary.
+#
+# It needs three repository variables. Set them from the Terraform outputs:
+#
+#   AWS_ROLE_ARN        stacks/infra    -> ci_role_arn
+#   AWS_REGION          us-east-1
+#   STATE_MACHINE_ARN   stacks/platform -> state_machine_arn
+name: final-project-train
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag of the training image in ECR. Empty means this commit."
+        required: false
+        default: ""
+      experiment_name:
+        description: "MLflow experiment. Empty means the default of the job."
+        required: false
+        default: ""
+      sample_rows:
+        description: "Train on this many rows only. Empty means the whole file."
+        required: false
+        default: ""
+      max_iter:
+        description: "Boosting iterations. Empty means the default of the job."
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  train:
+    name: Run the training pipeline
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Check that the pipeline exists
+        # A clear message instead of an AWS error that is hard to read.
+        run: |
+          set -euo pipefail
+          if [ -z "${{ vars.STATE_MACHINE_ARN }}" ]; then
+            echo "STATE_MACHINE_ARN is not set. Apply stacks/platform first," \
+              "then copy the output 'state_machine_arn' into the repository" \
+              "variables." >&2
+            exit 1
+          fi
+
+      - name: Assume the CI role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: final-project-train
+          # The state machine ARN contains the account id and this repository
+          # is public.
+          mask-aws-account-id: true
+
+      - name: Build the input of the execution
+        id: input
+        env:
+          # The full commit, which is also what the model version is tagged
+          # with. The image is tagged with the same value by push-images.
+          GIT_SHA: ${{ github.sha }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          EXPERIMENT_NAME: ${{ inputs.experiment_name }}
+          SAMPLE_ROWS: ${{ inputs.sample_rows }}
+          MAX_ITER: ${{ inputs.max_iter }}
+        run: |
+          set -euo pipefail
+
+          # The contract of the ValidateInput function:
+          #   {"image_tag": "...", "git_sha": "...", "params": {...}}
+          # Only the parameters listed in ALLOWED_PARAMS are accepted, and the
+          # numbers have to be numbers, not strings. Empty inputs are left out
+          # so the job falls back to its own defaults.
+          tag="${IMAGE_TAG:-$GIT_SHA}"
+
+          params="{}"
+          add_text() {
+            params="$(jq -c --arg k "$1" --arg v "$2" '.[$k] = $v' <<<"$params")"
+          }
+          add_number() {
+            params="$(jq -c --arg k "$1" --argjson v "$2" '.[$k] = $v' <<<"$params")"
+          }
+
+          if [ -n "$EXPERIMENT_NAME" ]; then add_text experiment_name "$EXPERIMENT_NAME"; fi
+          if [ -n "$SAMPLE_ROWS" ]; then add_number sample_rows "$SAMPLE_ROWS"; fi
+          if [ -n "$MAX_ITER" ]; then add_number max_iter "$MAX_ITER"; fi
+
+          input="$(jq -c \
+            --arg tag "$tag" \
+            --arg sha "$GIT_SHA" \
+            --argjson params "$params" \
+            '{image_tag: $tag, git_sha: $sha, params: $params}' <<<'{}')"
+
+          echo "input=$input" >>"$GITHUB_OUTPUT"
+          echo "Starting the pipeline with: $input"
+
+      - name: Start the execution and wait for it
+        id: run
+        env:
+          STATE_MACHINE_ARN: ${{ vars.STATE_MACHINE_ARN }}
+          INPUT: ${{ steps.input.outputs.input }}
+        run: |
+          set -euo pipefail
+
+          # A name that is unique and readable: the run of this workflow plus
+          # the attempt, so a re-run gets its own execution.
+          name="gh-${{ github.run_id }}-${{ github.run_attempt }}"
+
+          arn="$(aws stepfunctions start-execution \
+            --state-machine-arn "$STATE_MACHINE_ARN" \
+            --name "$name" \
+            --input "$INPUT" \
+            --query executionArn --output text)"
+          echo "::add-mask::$arn"
+          echo "execution $name started"
+
+          # Poll instead of waiting on an event: a training run takes a few
+          # minutes and there is nothing else for this job to do.
+          for _ in $(seq 1 180); do
+            status="$(aws stepfunctions describe-execution \
+              --execution-arn "$arn" --query status --output text)"
+            [ "$status" = "RUNNING" ] || break
+            sleep 10
+          done
+
+          aws stepfunctions describe-execution --execution-arn "$arn" \
+            --query '{status: status, output: output, error: error, cause: cause}' \
+            --output json >execution.json
+
+          status="$(jq -r .status execution.json)"
+          echo "status=$status" >>"$GITHUB_OUTPUT"
+          echo "the execution ended with status $status"
+
+      - name: Write the result into the job summary
+        # Also on a failure, because that is when the reason is wanted. The
+        # file is missing only if the previous step never got that far, and
+        # then the job has already failed for its own reason.
+        if: always() && hashFiles('execution.json') != ''
+        run: |
+          set -euo pipefail
+
+          status="$(jq -r .status execution.json)"
+          {
+            echo "## Training run"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| status | \`$status\` |"
+            echo "| commit | \`${{ github.sha }}\` |"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+          if [ "$status" = "SUCCEEDED" ]; then
+            # The output of the last state is what LogMetrics returned:
+            #   {"event": "training_pipeline_finished", "training": {...}}
+            # The inner object is the training_finished line the job printed.
+            jq -r '.output | fromjson | .training' execution.json >training.json
+            jq -r '
+              "| model | `\(.model)` |",
+              "| version | `\(.version)` |",
+              "| rmse | \(.rmse) |",
+              "| mae | \(.mae) |",
+              "| r2 | \(.r2) |",
+              "| run_id | `\(.run_id)` |",
+              "| dataset_sha256 | `\(.dataset_sha256)` |",
+              "| model_sha256 | `\(.model_sha256)` |"
+            ' training.json >>"$GITHUB_STEP_SUMMARY"
+            {
+              echo
+              echo "The new version has the alias \`staging\`, so the staging"
+              echo "pods load it within a minute. To promote it, put the"
+              echo "version and \`model_sha256\` into"
+              echo "\`final-project/gitops/envs/production.yaml\` and commit."
+            } >>"$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo
+              echo "### Why it stopped"
+              echo
+              echo '```'
+              jq -r '"\(.error // "no error field")\n\(.cause // "")"' execution.json
+              echo '```'
+            } >>"$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail the job if the execution failed
+        run: |
+          set -euo pipefail
+          status="$(jq -r .status execution.json)"
+          if [ "$status" != "SUCCEEDED" ]; then
+            echo "the training pipeline ended with status $status" >&2
+            exit 1
+          fi

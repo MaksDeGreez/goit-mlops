@@ -1,0 +1,444 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {
+          "namespace": "production",
+          "app": "inference",
+          "pod": "inference-7c9f4d8b6c-4q2xv",
+          "event": "prediction",
+          "model_version": "3"
+        },
+        "values": [
+          [
+            "1789923600000000000",
+            "{\"ts\": \"2026-09-20T18:00:00Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"6f03675a1600a35a099950d836f675cc\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.5907, \"HouseAge\": 14.0, \"AveRooms\": 4.974117, \"AveBedrms\": 0.919315, \"Population\": 2394.0, \"AveOccup\": 1.78239, \"Latitude\": 38.06, \"Longitude\": -115.28}, \"prediction\": 2.34, \"latency_ms\": 3.68}"
+          ],
+          [
+            "1789923601000000000",
+            "{\"ts\": \"2026-09-20T18:00:01Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"f9ebdacc0cb1e29c658cda1495e60af5\", \"model_version\": \"3\", \"features\": {\"MedInc\": 5.4084, \"HouseAge\": 8.0, \"AveRooms\": 7.134261, \"AveBedrms\": 0.949521, \"Population\": 1114.0, \"AveOccup\": 3.391878, \"Latitude\": 38.06, \"Longitude\": -123.59}, \"prediction\": 1.4728, \"latency_ms\": 5.9}"
+          ],
+          [
+            "1789923602000000000",
+            "{\"ts\": \"2026-09-20T18:00:02Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"5f557203301850c5a38fd547923a7369\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.0654, \"HouseAge\": 31.0, \"AveRooms\": 3.721275, \"AveBedrms\": 0.947117, \"Population\": 1463.0, \"AveOccup\": 3.180772, \"Latitude\": 38.97, \"Longitude\": -123.19}, \"prediction\": 0.9287, \"latency_ms\": 6.98}"
+          ],
+          [
+            "1789923603000000000",
+            "{\"ts\": \"2026-09-20T18:00:03Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"cb5c74273f98e2774cbd87ad5c90a958\", \"model_version\": \"3\", \"features\": {\"MedInc\": 5.5149, \"HouseAge\": 44.0, \"AveRooms\": 4.029794, \"AveBedrms\": 1.17216, \"Population\": 1951.0, \"AveOccup\": 3.831686, \"Latitude\": 36.98, \"Longitude\": -115.15}, \"prediction\": 1.291, \"latency_ms\": 7.46}"
+          ],
+          [
+            "1789923604000000000",
+            "{\"ts\": \"2026-09-20T18:00:04Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"c1d3fcff2a3af4d46b0a18e8830e07bc\", \"model_version\": \"3\", \"features\": {\"MedInc\": 1.6548, \"HouseAge\": 24.0, \"AveRooms\": 5.625983, \"AveBedrms\": 1.250055, \"Population\": 3187.0, \"AveOccup\": 2.846503, \"Latitude\": 38.3, \"Longitude\": -123.48}, \"prediction\": 2.005, \"latency_ms\": 8.53}"
+          ],
+          [
+            "1789923605000000000",
+            "{\"ts\": \"2026-09-20T18:00:05Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"cc011cdd9474031b7f26144b98289fcd\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.3736, \"HouseAge\": 47.0, \"AveRooms\": 3.388102, \"AveBedrms\": 1.12323, \"Population\": 3432.0, \"AveOccup\": 4.126433, \"Latitude\": 35.59, \"Longitude\": -117.39}, \"prediction\": 2.5073, \"latency_ms\": 7.88}"
+          ],
+          [
+            "1789923606000000000",
+            "{\"ts\": \"2026-09-20T18:00:06Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"b774eb5248db40af72158370d269a9a5\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.5574, \"HouseAge\": 35.0, \"AveRooms\": 6.48521, \"AveBedrms\": 0.926, \"Population\": 3194.0, \"AveOccup\": 3.604476, \"Latitude\": 38.65, \"Longitude\": -114.47}, \"prediction\": 2.1975, \"latency_ms\": 6.68}"
+          ],
+          [
+            "1789923607000000000",
+            "{\"ts\": \"2026-09-20T18:00:07Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"eab477d26415479c65dc9f503f63af83\", \"model_version\": \"3\", \"features\": {\"MedInc\": 1.1805, \"HouseAge\": 34.0, \"AveRooms\": 4.777321, \"AveBedrms\": 1.144368, \"Population\": 2222.0, \"AveOccup\": 1.676863, \"Latitude\": 39.77, \"Longitude\": -122.93}, \"prediction\": 4.3343, \"latency_ms\": 2.56}"
+          ],
+          [
+            "1789923608000000000",
+            "{\"ts\": \"2026-09-20T18:00:08Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"616499c9e25a7605aec6f0245bd86d40\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.5935, \"HouseAge\": 40.0, \"AveRooms\": 4.389196, \"AveBedrms\": 0.95477, \"Population\": 1963.0, \"AveOccup\": 4.091953, \"Latitude\": 35.26, \"Longitude\": -120.13}, \"prediction\": 4.714, \"latency_ms\": 3.06}"
+          ],
+          [
+            "1789923609000000000",
+            "{\"ts\": \"2026-09-20T18:00:09Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"90fbbd119c1caaf75e8766ed88daf401\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.4097, \"HouseAge\": 19.0, \"AveRooms\": 6.292583, \"AveBedrms\": 0.904825, \"Population\": 2613.0, \"AveOccup\": 2.047029, \"Latitude\": 35.29, \"Longitude\": -122.77}, \"prediction\": 1.9019, \"latency_ms\": 2.88}"
+          ],
+          [
+            "1789923610000000000",
+            "{\"ts\": \"2026-09-20T18:00:10Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"65e7e4236472f1a38f2c6ec8cc4169a3\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.8736, \"HouseAge\": 44.0, \"AveRooms\": 6.274832, \"AveBedrms\": 1.195914, \"Population\": 2070.0, \"AveOccup\": 4.198599, \"Latitude\": 39.88, \"Longitude\": -115.63}, \"prediction\": 2.2555, \"latency_ms\": 2.72}"
+          ],
+          [
+            "1789923611000000000",
+            "{\"ts\": \"2026-09-20T18:00:11Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"895fd7b326b94c7f9118bb16000f49c8\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.0743, \"HouseAge\": 8.0, \"AveRooms\": 3.953048, \"AveBedrms\": 1.293867, \"Population\": 2004.0, \"AveOccup\": 1.98691, \"Latitude\": 35.83, \"Longitude\": -123.68}, \"prediction\": 0.9464, \"latency_ms\": 4.55}"
+          ],
+          [
+            "1789923612000000000",
+            "{\"ts\": \"2026-09-20T18:00:12Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"fe3bfada7cf20724d953ee261d87cec3\", \"model_version\": \"3\", \"features\": {\"MedInc\": 1.204, \"HouseAge\": 18.0, \"AveRooms\": 6.070345, \"AveBedrms\": 0.95942, \"Population\": 1233.0, \"AveOccup\": 4.366404, \"Latitude\": 38.24, \"Longitude\": -119.55}, \"prediction\": 4.8024, \"latency_ms\": 5.36}"
+          ],
+          [
+            "1789923613000000000",
+            "{\"ts\": \"2026-09-20T18:00:13Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"873be078f3b7a50df373ca533488f876\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.4948, \"HouseAge\": 14.0, \"AveRooms\": 3.510938, \"AveBedrms\": 1.037054, \"Population\": 1284.0, \"AveOccup\": 2.935866, \"Latitude\": 39.07, \"Longitude\": -119.14}, \"prediction\": 2.0917, \"latency_ms\": 6.83}"
+          ],
+          [
+            "1789923614000000000",
+            "{\"ts\": \"2026-09-20T18:00:14Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"3908f227c59db9165b0ee76f2ac34446\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.3132, \"HouseAge\": 38.0, \"AveRooms\": 4.490448, \"AveBedrms\": 1.157167, \"Population\": 572.0, \"AveOccup\": 3.58859, \"Latitude\": 35.1, \"Longitude\": -120.61}, \"prediction\": 2.8434, \"latency_ms\": 7.45}"
+          ],
+          [
+            "1789923615000000000",
+            "{\"ts\": \"2026-09-20T18:00:15Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"332dd3313a0b9965cda6c6fdbd685167\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.6373, \"HouseAge\": 19.0, \"AveRooms\": 6.066141, \"AveBedrms\": 1.21536, \"Population\": 3306.0, \"AveOccup\": 4.057886, \"Latitude\": 40.12, \"Longitude\": -116.18}, \"prediction\": 2.7776, \"latency_ms\": 4.49}"
+          ],
+          [
+            "1789923616000000000",
+            "{\"ts\": \"2026-09-20T18:00:16Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"597a1ecffcf00fecb91ee9e5efe09f07\", \"model_version\": \"3\", \"features\": {\"MedInc\": 1.2318, \"HouseAge\": 6.0, \"AveRooms\": 6.950571, \"AveBedrms\": 1.088896, \"Population\": 993.0, \"AveOccup\": 3.577566, \"Latitude\": 41.5, \"Longitude\": -119.82}, \"prediction\": 4.702, \"latency_ms\": 4.55}"
+          ],
+          [
+            "1789923617000000000",
+            "{\"ts\": \"2026-09-20T18:00:17Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"5810d60ea72991b9e8c147437abec539\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.7637, \"HouseAge\": 19.0, \"AveRooms\": 5.3504, \"AveBedrms\": 1.035095, \"Population\": 2176.0, \"AveOccup\": 3.372199, \"Latitude\": 40.98, \"Longitude\": -115.96}, \"prediction\": 4.0184, \"latency_ms\": 2.59}"
+          ],
+          [
+            "1789923618000000000",
+            "{\"ts\": \"2026-09-20T18:00:18Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"f8be8831f237e45acd02c5e116353d03\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.2847, \"HouseAge\": 29.0, \"AveRooms\": 6.911514, \"AveBedrms\": 1.200056, \"Population\": 2158.0, \"AveOccup\": 4.167033, \"Latitude\": 36.69, \"Longitude\": -117.97}, \"prediction\": 3.676, \"latency_ms\": 5.24}"
+          ],
+          [
+            "1789923619000000000",
+            "{\"ts\": \"2026-09-20T18:00:19Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"d39630d69c9011ef256badf9a7e6529b\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.9468, \"HouseAge\": 10.0, \"AveRooms\": 6.623993, \"AveBedrms\": 0.968001, \"Population\": 720.0, \"AveOccup\": 1.582647, \"Latitude\": 38.14, \"Longitude\": -119.64}, \"prediction\": 3.1218, \"latency_ms\": 5.32}"
+          ],
+          [
+            "1789923620000000000",
+            "{\"ts\": \"2026-09-20T18:00:20Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"6f0e228923a5ef88ef02090bbfdefc15\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.4997, \"HouseAge\": 14.0, \"AveRooms\": 5.7433, \"AveBedrms\": 0.952394, \"Population\": 258.0, \"AveOccup\": 3.898071, \"Latitude\": 39.38, \"Longitude\": -123.19}, \"prediction\": 4.8408, \"latency_ms\": 3.36}"
+          ],
+          [
+            "1789923621000000000",
+            "{\"ts\": \"2026-09-20T18:00:21Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"e8f6e0bd0f977044218e0b7bd58dcdb4\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.9913, \"HouseAge\": 6.0, \"AveRooms\": 4.259174, \"AveBedrms\": 1.017187, \"Population\": 1185.0, \"AveOccup\": 3.791039, \"Latitude\": 35.7, \"Longitude\": -118.87}, \"prediction\": 3.7557, \"latency_ms\": 8.28}"
+          ],
+          [
+            "1789923622000000000",
+            "{\"ts\": \"2026-09-20T18:00:22Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"2ee0289dc6c91b9270ac06acdf703017\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.2998, \"HouseAge\": 38.0, \"AveRooms\": 5.103141, \"AveBedrms\": 1.267088, \"Population\": 2254.0, \"AveOccup\": 1.89229, \"Latitude\": 34.1, \"Longitude\": -119.2}, \"prediction\": 3.1776, \"latency_ms\": 7.43}"
+          ],
+          [
+            "1789923623000000000",
+            "{\"ts\": \"2026-09-20T18:00:23Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"1b29fc99c6c80e2bc8c614b27b8444d1\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.1984, \"HouseAge\": 14.0, \"AveRooms\": 5.367465, \"AveBedrms\": 1.190077, \"Population\": 2479.0, \"AveOccup\": 1.685266, \"Latitude\": 38.98, \"Longitude\": -119.0}, \"prediction\": 4.3862, \"latency_ms\": 2.4}"
+          ],
+          [
+            "1789923624000000000",
+            "{\"ts\": \"2026-09-20T18:00:24Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"816bee06f92e23399ccea098535b6a43\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.5304, \"HouseAge\": 7.0, \"AveRooms\": 6.861305, \"AveBedrms\": 1.103086, \"Population\": 2500.0, \"AveOccup\": 1.583597, \"Latitude\": 40.92, \"Longitude\": -123.58}, \"prediction\": 3.167, \"latency_ms\": 3.4}"
+          ],
+          [
+            "1789923625000000000",
+            "{\"ts\": \"2026-09-20T18:00:25Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"e48b96628f3c4be3ec3b96054274a3eb\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.2175, \"HouseAge\": 37.0, \"AveRooms\": 5.666427, \"AveBedrms\": 1.091215, \"Population\": 1214.0, \"AveOccup\": 3.597654, \"Latitude\": 40.76, \"Longitude\": -114.97}, \"prediction\": 4.6504, \"latency_ms\": 7.88}"
+          ],
+          [
+            "1789923626000000000",
+            "{\"ts\": \"2026-09-20T18:00:26Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"c6e50df2e5a3863e1f525265c8b007ee\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.0971, \"HouseAge\": 12.0, \"AveRooms\": 4.961822, \"AveBedrms\": 1.026392, \"Population\": 2949.0, \"AveOccup\": 2.221916, \"Latitude\": 33.37, \"Longitude\": -117.64}, \"prediction\": 1.1796, \"latency_ms\": 7.01}"
+          ],
+          [
+            "1789923627000000000",
+            "{\"ts\": \"2026-09-20T18:00:27Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"aaf719f3fd68373b29acf1a57cbd1f5a\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.2821, \"HouseAge\": 14.0, \"AveRooms\": 4.265539, \"AveBedrms\": 0.954902, \"Population\": 2115.0, \"AveOccup\": 2.158763, \"Latitude\": 41.46, \"Longitude\": -120.3}, \"prediction\": 4.1628, \"latency_ms\": 3.13}"
+          ],
+          [
+            "1789923628000000000",
+            "{\"ts\": \"2026-09-20T18:00:28Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"b401ba8570c1dca1756b72898dd63cb9\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.4522, \"HouseAge\": 37.0, \"AveRooms\": 5.019049, \"AveBedrms\": 1.068511, \"Population\": 1660.0, \"AveOccup\": 2.455577, \"Latitude\": 39.34, \"Longitude\": -124.01}, \"prediction\": 0.5796, \"latency_ms\": 4.32}"
+          ],
+          [
+            "1789923629000000000",
+            "{\"ts\": \"2026-09-20T18:00:29Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"c76c603fe7e8f9f60a227385459c945c\", \"model_version\": \"3\", \"features\": {\"MedInc\": 5.9914, \"HouseAge\": 37.0, \"AveRooms\": 7.803874, \"AveBedrms\": 0.94514, \"Population\": 3429.0, \"AveOccup\": 2.185662, \"Latitude\": 40.76, \"Longitude\": -123.38}, \"prediction\": 1.2988, \"latency_ms\": 7.29}"
+          ],
+          [
+            "1789923630000000000",
+            "{\"ts\": \"2026-09-20T18:00:30Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"0eba0ea84770a08716e6fec353b97377\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.5582, \"HouseAge\": 48.0, \"AveRooms\": 7.094895, \"AveBedrms\": 1.003444, \"Population\": 811.0, \"AveOccup\": 3.109797, \"Latitude\": 37.44, \"Longitude\": -119.35}, \"prediction\": 4.0182, \"latency_ms\": 3.28}"
+          ],
+          [
+            "1789923631000000000",
+            "{\"ts\": \"2026-09-20T18:00:31Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"742a80631f2642aadcded20443b30f66\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.1623, \"HouseAge\": 22.0, \"AveRooms\": 7.691749, \"AveBedrms\": 1.153776, \"Population\": 3483.0, \"AveOccup\": 2.281656, \"Latitude\": 38.3, \"Longitude\": -122.02}, \"prediction\": 0.5508, \"latency_ms\": 8.96}"
+          ],
+          [
+            "1789923632000000000",
+            "{\"ts\": \"2026-09-20T18:00:32Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"eea7bb6433a715682e5f950c0ce5af69\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.3421, \"HouseAge\": 22.0, \"AveRooms\": 6.108517, \"AveBedrms\": 0.917282, \"Population\": 3106.0, \"AveOccup\": 2.215309, \"Latitude\": 33.71, \"Longitude\": -122.62}, \"prediction\": 1.8728, \"latency_ms\": 4.14}"
+          ],
+          [
+            "1789923633000000000",
+            "{\"ts\": \"2026-09-20T18:00:33Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"81728a07bbab27f604b8157d03edb920\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.076, \"HouseAge\": 23.0, \"AveRooms\": 5.228434, \"AveBedrms\": 1.168863, \"Population\": 1308.0, \"AveOccup\": 2.541003, \"Latitude\": 32.87, \"Longitude\": -121.75}, \"prediction\": 2.9246, \"latency_ms\": 3.33}"
+          ],
+          [
+            "1789923634000000000",
+            "{\"ts\": \"2026-09-20T18:00:34Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"b00fd7bb4ecadea281b62bb5f86664ae\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.7981, \"HouseAge\": 33.0, \"AveRooms\": 3.531407, \"AveBedrms\": 1.227568, \"Population\": 1970.0, \"AveOccup\": 3.469528, \"Latitude\": 37.72, \"Longitude\": -115.49}, \"prediction\": 1.4468, \"latency_ms\": 3.61}"
+          ],
+          [
+            "1789923635000000000",
+            "{\"ts\": \"2026-09-20T18:00:35Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"416e99b0e13e213ebdaaea00a01d616f\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.589, \"HouseAge\": 50.0, \"AveRooms\": 6.644221, \"AveBedrms\": 0.955888, \"Population\": 1623.0, \"AveOccup\": 4.445646, \"Latitude\": 40.4, \"Longitude\": -124.06}, \"prediction\": 2.3953, \"latency_ms\": 2.39}"
+          ],
+          [
+            "1789923636000000000",
+            "{\"ts\": \"2026-09-20T18:00:36Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"72218fdc44df96ff285414242f733b05\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.3218, \"HouseAge\": 29.0, \"AveRooms\": 7.352689, \"AveBedrms\": 1.168217, \"Population\": 1354.0, \"AveOccup\": 3.296335, \"Latitude\": 39.07, \"Longitude\": -123.76}, \"prediction\": 0.5159, \"latency_ms\": 4.55}"
+          ],
+          [
+            "1789923637000000000",
+            "{\"ts\": \"2026-09-20T18:00:37Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"80b5244a4767e1fa79823eb21579da0a\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.6314, \"HouseAge\": 40.0, \"AveRooms\": 4.617669, \"AveBedrms\": 0.913779, \"Population\": 1467.0, \"AveOccup\": 2.153598, \"Latitude\": 34.38, \"Longitude\": -120.91}, \"prediction\": 3.3865, \"latency_ms\": 3.74}"
+          ],
+          [
+            "1789923638000000000",
+            "{\"ts\": \"2026-09-20T18:00:38Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"95e8c93e15a0a8ae3b996870a1320b9d\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.2099, \"HouseAge\": 10.0, \"AveRooms\": 4.320843, \"AveBedrms\": 0.935901, \"Population\": 1836.0, \"AveOccup\": 3.260402, \"Latitude\": 36.32, \"Longitude\": -121.26}, \"prediction\": 4.7136, \"latency_ms\": 7.97}"
+          ],
+          [
+            "1789923639000000000",
+            "{\"ts\": \"2026-09-20T18:00:39Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"250e7b34a4aa07b49e6397d4b96245d3\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.242, \"HouseAge\": 50.0, \"AveRooms\": 6.920206, \"AveBedrms\": 1.138624, \"Population\": 3330.0, \"AveOccup\": 2.478404, \"Latitude\": 41.76, \"Longitude\": -122.74}, \"prediction\": 0.6927, \"latency_ms\": 7.85}"
+          ],
+          [
+            "1789923640000000000",
+            "{\"ts\": \"2026-09-20T18:00:40Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"041dcd94cdff5a1cd01a914cd5be785a\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.1355, \"HouseAge\": 45.0, \"AveRooms\": 5.146224, \"AveBedrms\": 1.180421, \"Population\": 2270.0, \"AveOccup\": 1.917923, \"Latitude\": 37.52, \"Longitude\": -119.26}, \"prediction\": 4.1362, \"latency_ms\": 6.09}"
+          ],
+          [
+            "1789923641000000000",
+            "{\"ts\": \"2026-09-20T18:00:41Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"738e0b77d5f860c3606a0deb1adbce5d\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.1426, \"HouseAge\": 48.0, \"AveRooms\": 7.780389, \"AveBedrms\": 1.157156, \"Population\": 548.0, \"AveOccup\": 1.593482, \"Latitude\": 33.92, \"Longitude\": -120.67}, \"prediction\": 2.9575, \"latency_ms\": 6.39}"
+          ],
+          [
+            "1789923642000000000",
+            "{\"ts\": \"2026-09-20T18:00:42Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"86a74a63a8c7d9e01789819f8902dafc\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.0098, \"HouseAge\": 48.0, \"AveRooms\": 4.222798, \"AveBedrms\": 1.005517, \"Population\": 2071.0, \"AveOccup\": 3.893093, \"Latitude\": 39.58, \"Longitude\": -119.27}, \"prediction\": 0.7906, \"latency_ms\": 7.16}"
+          ],
+          [
+            "1789923643000000000",
+            "{\"ts\": \"2026-09-20T18:00:43Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"13a5397f61ef7bd1d874bc797e736d5f\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.0175, \"HouseAge\": 9.0, \"AveRooms\": 7.230668, \"AveBedrms\": 0.993914, \"Population\": 3298.0, \"AveOccup\": 2.115653, \"Latitude\": 39.51, \"Longitude\": -114.64}, \"prediction\": 2.6076, \"latency_ms\": 6.79}"
+          ],
+          [
+            "1789923644000000000",
+            "{\"ts\": \"2026-09-20T18:00:44Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"222930ae9158d4a89f03bc5a4dee4812\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.1358, \"HouseAge\": 44.0, \"AveRooms\": 6.163964, \"AveBedrms\": 0.979316, \"Population\": 2656.0, \"AveOccup\": 1.942275, \"Latitude\": 35.04, \"Longitude\": -116.92}, \"prediction\": 0.5549, \"latency_ms\": 2.42}"
+          ],
+          [
+            "1789923645000000000",
+            "{\"ts\": \"2026-09-20T18:00:45Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"fe48ef631e563408c4653cde776200b5\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.1502, \"HouseAge\": 48.0, \"AveRooms\": 3.497595, \"AveBedrms\": 0.987077, \"Population\": 2205.0, \"AveOccup\": 2.372569, \"Latitude\": 37.45, \"Longitude\": -119.65}, \"prediction\": 4.4321, \"latency_ms\": 3.39}"
+          ],
+          [
+            "1789923646000000000",
+            "{\"ts\": \"2026-09-20T18:00:46Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"ee379c65f21201e4eaa3556c35b7e448\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.825, \"HouseAge\": 35.0, \"AveRooms\": 3.087522, \"AveBedrms\": 1.083588, \"Population\": 2275.0, \"AveOccup\": 4.404325, \"Latitude\": 36.83, \"Longitude\": -121.57}, \"prediction\": 1.4271, \"latency_ms\": 6.07}"
+          ],
+          [
+            "1789923647000000000",
+            "{\"ts\": \"2026-09-20T18:00:47Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"7f7595b53b3bf4bf5d7cfed1b40de56d\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.1339, \"HouseAge\": 38.0, \"AveRooms\": 4.309045, \"AveBedrms\": 1.043821, \"Population\": 2671.0, \"AveOccup\": 3.960651, \"Latitude\": 37.38, \"Longitude\": -115.51}, \"prediction\": 4.4499, \"latency_ms\": 5.4}"
+          ],
+          [
+            "1789923648000000000",
+            "{\"ts\": \"2026-09-20T18:00:48Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"54d1ac6bd71961891ef3ea4450ea7da7\", \"model_version\": \"3\", \"features\": {\"MedInc\": 1.1987, \"HouseAge\": 5.0, \"AveRooms\": 7.749798, \"AveBedrms\": 1.172635, \"Population\": 1860.0, \"AveOccup\": 2.405853, \"Latitude\": 33.99, \"Longitude\": -120.83}, \"prediction\": 0.5077, \"latency_ms\": 7.26}"
+          ],
+          [
+            "1789923649000000000",
+            "{\"ts\": \"2026-09-20T18:00:49Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"deb67ae7ffb0dd9e63e1986964950dc2\", \"model_version\": \"3\", \"features\": {\"MedInc\": 7.7129, \"HouseAge\": 12.0, \"AveRooms\": 7.699405, \"AveBedrms\": 0.978296, \"Population\": 248.0, \"AveOccup\": 4.2047, \"Latitude\": 35.37, \"Longitude\": -120.55}, \"prediction\": 3.0924, \"latency_ms\": 4.52}"
+          ],
+          [
+            "1789923650000000000",
+            "{\"ts\": \"2026-09-20T18:00:50Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"6fad79364406c053f895fc553fd3be98\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.4244, \"HouseAge\": 22.0, \"AveRooms\": 7.271276, \"AveBedrms\": 1.012255, \"Population\": 411.0, \"AveOccup\": 4.004028, \"Latitude\": 35.33, \"Longitude\": -115.03}, \"prediction\": 2.7482, \"latency_ms\": 3.33}"
+          ],
+          [
+            "1789923651000000000",
+            "{\"ts\": \"2026-09-20T18:00:51Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"0caa761214a0b00bb835e8a534145e87\", \"model_version\": \"3\", \"features\": {\"MedInc\": 3.9868, \"HouseAge\": 32.0, \"AveRooms\": 7.421333, \"AveBedrms\": 1.224785, \"Population\": 2784.0, \"AveOccup\": 2.700125, \"Latitude\": 40.76, \"Longitude\": -118.77}, \"prediction\": 4.6072, \"latency_ms\": 4.88}"
+          ],
+          [
+            "1789923652000000000",
+            "{\"ts\": \"2026-09-20T18:00:52Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"4c3ac6fc4820823157fa49e56a34b371\", \"model_version\": \"3\", \"features\": {\"MedInc\": 5.9193, \"HouseAge\": 13.0, \"AveRooms\": 6.222454, \"AveBedrms\": 1.014483, \"Population\": 400.0, \"AveOccup\": 4.235716, \"Latitude\": 37.76, \"Longitude\": -122.53}, \"prediction\": 1.6253, \"latency_ms\": 7.17}"
+          ],
+          [
+            "1789923653000000000",
+            "{\"ts\": \"2026-09-20T18:00:53Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"e7ecfd0c8027a2a235372235133e6153\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.2225, \"HouseAge\": 30.0, \"AveRooms\": 6.279977, \"AveBedrms\": 1.020335, \"Population\": 2482.0, \"AveOccup\": 3.506628, \"Latitude\": 33.8, \"Longitude\": -117.9}, \"prediction\": 4.072, \"latency_ms\": 5.85}"
+          ],
+          [
+            "1789923654000000000",
+            "{\"ts\": \"2026-09-20T18:00:54Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"3d37664251bcd77a1751f5798e4dc3a3\", \"model_version\": \"3\", \"features\": {\"MedInc\": 4.6239, \"HouseAge\": 26.0, \"AveRooms\": 7.982376, \"AveBedrms\": 1.079984, \"Population\": 771.0, \"AveOccup\": 3.143356, \"Latitude\": 34.95, \"Longitude\": -122.49}, \"prediction\": 2.1205, \"latency_ms\": 7.67}"
+          ],
+          [
+            "1789923655000000000",
+            "{\"ts\": \"2026-09-20T18:00:55Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"470b4fad7f867d5f0fe321ecc08a58d7\", \"model_version\": \"3\", \"features\": {\"MedInc\": 2.6171, \"HouseAge\": 6.0, \"AveRooms\": 6.748288, \"AveBedrms\": 1.065113, \"Population\": 1895.0, \"AveOccup\": 3.737522, \"Latitude\": 34.63, \"Longitude\": -121.55}, \"prediction\": 3.0268, \"latency_ms\": 4.52}"
+          ],
+          [
+            "1789923656000000000",
+            "{\"ts\": \"2026-09-20T18:00:56Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"f435a5736e8cd94e7223c68aa5529b05\", \"model_version\": \"3\", \"features\": {\"MedInc\": 6.494, \"HouseAge\": 38.0, \"AveRooms\": 6.148135, \"AveBedrms\": 1.245145, \"Population\": 1084.0, \"AveOccup\": 1.777794, \"Latitude\": 40.95, \"Longitude\": -120.43}, \"prediction\": 1.8729, \"latency_ms\": 7.7}"
+          ],
+          [
+            "1789923657000000000",
+            "{\"ts\": \"2026-09-20T18:00:57Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"ed9bf0b6ed448d4eee241c43643ab9e2\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.7443, \"HouseAge\": 13.0, \"AveRooms\": 3.161217, \"AveBedrms\": 1.183805, \"Population\": 3494.0, \"AveOccup\": 2.919805, \"Latitude\": 38.1, \"Longitude\": -124.2}, \"prediction\": 4.1326, \"latency_ms\": 7.99}"
+          ],
+          [
+            "1789923658000000000",
+            "{\"ts\": \"2026-09-20T18:00:58Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"d8b4c831a5b89b2fb374fab6b8c3a4d2\", \"model_version\": \"3\", \"features\": {\"MedInc\": 8.7779, \"HouseAge\": 20.0, \"AveRooms\": 6.915536, \"AveBedrms\": 0.98952, \"Population\": 822.0, \"AveOccup\": 3.067097, \"Latitude\": 38.98, \"Longitude\": -114.97}, \"prediction\": 3.8651, \"latency_ms\": 5.2}"
+          ],
+          [
+            "1789923659000000000",
+            "{\"ts\": \"2026-09-20T18:00:59Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"873b99034075916ea060846c20c26f71\", \"model_version\": \"3\", \"features\": {\"MedInc\": 5.412, \"HouseAge\": 7.0, \"AveRooms\": 3.00683, \"AveBedrms\": 0.950261, \"Population\": 2532.0, \"AveOccup\": 4.25976, \"Latitude\": 38.64, \"Longitude\": -121.22}, \"prediction\": 3.2997, \"latency_ms\": 6.89}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "namespace": "production",
+          "app": "inference",
+          "pod": "inference-canary-58d7c6f9b7-l8mkp",
+          "event": "prediction",
+          "model_version": "4"
+        },
+        "values": [
+          [
+            "1789923700000000000",
+            "{\"ts\": \"2026-09-20T18:00:00Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"ff125eb44d307fe489980c5002ad9d2b\", \"model_version\": \"4\", \"features\": {\"MedInc\": 1.8971, \"HouseAge\": 9.0, \"AveRooms\": 4.501746, \"AveBedrms\": 1.277416, \"Population\": 985.0, \"AveOccup\": 2.664246, \"Latitude\": 34.76, \"Longitude\": -118.31}, \"prediction\": 2.527, \"latency_ms\": 8.71}"
+          ],
+          [
+            "1789923701000000000",
+            "{\"ts\": \"2026-09-20T18:00:01Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"7f91428631b1891a0593dba20e28b64f\", \"model_version\": \"4\", \"features\": {\"MedInc\": 6.1566, \"HouseAge\": 20.0, \"AveRooms\": 5.376521, \"AveBedrms\": 0.993907, \"Population\": 1211.0, \"AveOccup\": 1.587843, \"Latitude\": 36.49, \"Longitude\": -117.83}, \"prediction\": 4.3933, \"latency_ms\": 6.53}"
+          ],
+          [
+            "1789923702000000000",
+            "{\"ts\": \"2026-09-20T18:00:02Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"32b558fd6577bb54aebcb0aa5cc0ff06\", \"model_version\": \"4\", \"features\": {\"MedInc\": 1.6487, \"HouseAge\": 19.0, \"AveRooms\": 6.336775, \"AveBedrms\": 1.270064, \"Population\": 1128.0, \"AveOccup\": 2.97883, \"Latitude\": 39.1, \"Longitude\": -117.16}, \"prediction\": 0.5297, \"latency_ms\": 4.04}"
+          ],
+          [
+            "1789923703000000000",
+            "{\"ts\": \"2026-09-20T18:00:03Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"4b80b828e3ab6283c2ae35d243d87a97\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.7612, \"HouseAge\": 9.0, \"AveRooms\": 4.026093, \"AveBedrms\": 1.287943, \"Population\": 1476.0, \"AveOccup\": 3.797571, \"Latitude\": 34.48, \"Longitude\": -119.64}, \"prediction\": 0.9796, \"latency_ms\": 6.37}"
+          ],
+          [
+            "1789923704000000000",
+            "{\"ts\": \"2026-09-20T18:00:04Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"989bc9dcf95fe8a0060c88043683d4bc\", \"model_version\": \"4\", \"features\": {\"MedInc\": 5.8808, \"HouseAge\": 19.0, \"AveRooms\": 5.425264, \"AveBedrms\": 1.264158, \"Population\": 431.0, \"AveOccup\": 4.346284, \"Latitude\": 34.05, \"Longitude\": -120.34}, \"prediction\": 1.1244, \"latency_ms\": 2.36}"
+          ],
+          [
+            "1789923705000000000",
+            "{\"ts\": \"2026-09-20T18:00:05Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"a70828a72f7dba0830d0a2b8544940e1\", \"model_version\": \"4\", \"features\": {\"MedInc\": 1.4811, \"HouseAge\": 30.0, \"AveRooms\": 5.24821, \"AveBedrms\": 1.184814, \"Population\": 1486.0, \"AveOccup\": 3.698171, \"Latitude\": 41.88, \"Longitude\": -115.07}, \"prediction\": 4.6179, \"latency_ms\": 7.22}"
+          ],
+          [
+            "1789923706000000000",
+            "{\"ts\": \"2026-09-20T18:00:06Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"f49c9eba6b911f9759f9bb7914ace1cb\", \"model_version\": \"4\", \"features\": {\"MedInc\": 1.2551, \"HouseAge\": 47.0, \"AveRooms\": 6.626887, \"AveBedrms\": 1.235651, \"Population\": 1558.0, \"AveOccup\": 2.827305, \"Latitude\": 33.7, \"Longitude\": -123.43}, \"prediction\": 4.3948, \"latency_ms\": 5.93}"
+          ],
+          [
+            "1789923707000000000",
+            "{\"ts\": \"2026-09-20T18:00:07Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"7243d47ceb64c5c48aa1a59c5f6a35d9\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.0704, \"HouseAge\": 29.0, \"AveRooms\": 4.783146, \"AveBedrms\": 1.228629, \"Population\": 3492.0, \"AveOccup\": 2.797348, \"Latitude\": 33.15, \"Longitude\": -119.56}, \"prediction\": 1.3493, \"latency_ms\": 4.55}"
+          ],
+          [
+            "1789923708000000000",
+            "{\"ts\": \"2026-09-20T18:00:08Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"0fdf7cc6eb8a25fccda7907710053d2c\", \"model_version\": \"4\", \"features\": {\"MedInc\": 8.1759, \"HouseAge\": 6.0, \"AveRooms\": 6.158311, \"AveBedrms\": 0.999205, \"Population\": 2761.0, \"AveOccup\": 3.800004, \"Latitude\": 33.07, \"Longitude\": -123.86}, \"prediction\": 1.6309, \"latency_ms\": 7.23}"
+          ],
+          [
+            "1789923709000000000",
+            "{\"ts\": \"2026-09-20T18:00:09Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"00f72d3c4c22cab7468fb596ec9a360c\", \"model_version\": \"4\", \"features\": {\"MedInc\": 8.1884, \"HouseAge\": 26.0, \"AveRooms\": 4.814871, \"AveBedrms\": 1.033988, \"Population\": 2727.0, \"AveOccup\": 1.630757, \"Latitude\": 39.57, \"Longitude\": -117.44}, \"prediction\": 3.6749, \"latency_ms\": 6.17}"
+          ],
+          [
+            "1789923710000000000",
+            "{\"ts\": \"2026-09-20T18:00:10Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"6e106c0ee9de047940449aa0ca304218\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.4453, \"HouseAge\": 9.0, \"AveRooms\": 3.121284, \"AveBedrms\": 0.993547, \"Population\": 2146.0, \"AveOccup\": 3.646714, \"Latitude\": 36.98, \"Longitude\": -116.59}, \"prediction\": 4.0851, \"latency_ms\": 2.93}"
+          ],
+          [
+            "1789923711000000000",
+            "{\"ts\": \"2026-09-20T18:00:11Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"c8a948145ca2c13275f5c1a051cdf2f9\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.9723, \"HouseAge\": 5.0, \"AveRooms\": 7.012842, \"AveBedrms\": 1.195395, \"Population\": 3034.0, \"AveOccup\": 3.818428, \"Latitude\": 38.29, \"Longitude\": -120.99}, \"prediction\": 3.9419, \"latency_ms\": 2.55}"
+          ],
+          [
+            "1789923712000000000",
+            "{\"ts\": \"2026-09-20T18:00:12Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"fce205cd1aefca62e22b64a66d32a901\", \"model_version\": \"4\", \"features\": {\"MedInc\": 2.5785, \"HouseAge\": 15.0, \"AveRooms\": 4.236538, \"AveBedrms\": 0.925893, \"Population\": 338.0, \"AveOccup\": 2.94507, \"Latitude\": 37.71, \"Longitude\": -122.63}, \"prediction\": 0.8175, \"latency_ms\": 6.37}"
+          ],
+          [
+            "1789923713000000000",
+            "{\"ts\": \"2026-09-20T18:00:13Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"bf7b6c6c3c2496ebac9261f1e429c87c\", \"model_version\": \"4\", \"features\": {\"MedInc\": 2.6667, \"HouseAge\": 31.0, \"AveRooms\": 5.492376, \"AveBedrms\": 1.183908, \"Population\": 2030.0, \"AveOccup\": 2.019576, \"Latitude\": 33.92, \"Longitude\": -119.68}, \"prediction\": 2.8697, \"latency_ms\": 7.42}"
+          ],
+          [
+            "1789923714000000000",
+            "{\"ts\": \"2026-09-20T18:00:14Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"27401fa03c49fdbd3ece9f2c2f8c6c08\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.0765, \"HouseAge\": 23.0, \"AveRooms\": 4.468911, \"AveBedrms\": 1.126754, \"Population\": 1727.0, \"AveOccup\": 2.26217, \"Latitude\": 35.1, \"Longitude\": -119.89}, \"prediction\": 1.738, \"latency_ms\": 8.35}"
+          ],
+          [
+            "1789923715000000000",
+            "{\"ts\": \"2026-09-20T18:00:15Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"1a327537097a5942fdaf451376c32dcd\", \"model_version\": \"4\", \"features\": {\"MedInc\": 2.506, \"HouseAge\": 9.0, \"AveRooms\": 4.980348, \"AveBedrms\": 1.296979, \"Population\": 2278.0, \"AveOccup\": 3.078926, \"Latitude\": 38.68, \"Longitude\": -123.21}, \"prediction\": 0.5198, \"latency_ms\": 8.18}"
+          ],
+          [
+            "1789923716000000000",
+            "{\"ts\": \"2026-09-20T18:00:16Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"ee1fdde031b4932c954c2fc1d3f2e52d\", \"model_version\": \"4\", \"features\": {\"MedInc\": 2.8489, \"HouseAge\": 33.0, \"AveRooms\": 7.571878, \"AveBedrms\": 0.916145, \"Population\": 1402.0, \"AveOccup\": 2.198678, \"Latitude\": 33.16, \"Longitude\": -118.32}, \"prediction\": 0.8305, \"latency_ms\": 5.59}"
+          ],
+          [
+            "1789923717000000000",
+            "{\"ts\": \"2026-09-20T18:00:17Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"570b534d5e63af1609969e7c37b79c48\", \"model_version\": \"4\", \"features\": {\"MedInc\": 2.4221, \"HouseAge\": 43.0, \"AveRooms\": 4.299741, \"AveBedrms\": 1.211111, \"Population\": 225.0, \"AveOccup\": 1.81734, \"Latitude\": 38.18, \"Longitude\": -118.12}, \"prediction\": 1.122, \"latency_ms\": 3.43}"
+          ],
+          [
+            "1789923718000000000",
+            "{\"ts\": \"2026-09-20T18:00:18Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"3412882213f388704fec0f409efac292\", \"model_version\": \"4\", \"features\": {\"MedInc\": 3.0393, \"HouseAge\": 43.0, \"AveRooms\": 6.661142, \"AveBedrms\": 1.265582, \"Population\": 246.0, \"AveOccup\": 3.956499, \"Latitude\": 36.46, \"Longitude\": -120.56}, \"prediction\": 0.6385, \"latency_ms\": 5.47}"
+          ],
+          [
+            "1789923719000000000",
+            "{\"ts\": \"2026-09-20T18:00:19Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"68e7ed23456b312cb2061ecc65d464fd\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.8681, \"HouseAge\": 31.0, \"AveRooms\": 3.506939, \"AveBedrms\": 1.058119, \"Population\": 2453.0, \"AveOccup\": 1.963656, \"Latitude\": 37.61, \"Longitude\": -117.8}, \"prediction\": 4.8483, \"latency_ms\": 6.67}"
+          ],
+          [
+            "1789923720000000000",
+            "{\"ts\": \"2026-09-20T18:00:20Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"327bcda3a4fc86215d20c6a6cd5e4aa0\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.3428, \"HouseAge\": 8.0, \"AveRooms\": 4.561809, \"AveBedrms\": 1.126608, \"Population\": 1663.0, \"AveOccup\": 2.74224, \"Latitude\": 32.87, \"Longitude\": -116.69}, \"prediction\": 2.2192, \"latency_ms\": 4.83}"
+          ],
+          [
+            "1789923721000000000",
+            "{\"ts\": \"2026-09-20T18:00:21Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"0d3be8ee03cc2f9b21460c5a299c858d\", \"model_version\": \"4\", \"features\": {\"MedInc\": 8.5359, \"HouseAge\": 32.0, \"AveRooms\": 7.508153, \"AveBedrms\": 1.069502, \"Population\": 570.0, \"AveOccup\": 2.718653, \"Latitude\": 40.82, \"Longitude\": -119.68}, \"prediction\": 2.9268, \"latency_ms\": 6.48}"
+          ],
+          [
+            "1789923722000000000",
+            "{\"ts\": \"2026-09-20T18:00:22Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"112d4095eced8ded2bfa1f10856aab1d\", \"model_version\": \"4\", \"features\": {\"MedInc\": 8.2784, \"HouseAge\": 10.0, \"AveRooms\": 5.864323, \"AveBedrms\": 1.270891, \"Population\": 3219.0, \"AveOccup\": 3.013389, \"Latitude\": 34.04, \"Longitude\": -121.42}, \"prediction\": 0.9787, \"latency_ms\": 5.43}"
+          ],
+          [
+            "1789923723000000000",
+            "{\"ts\": \"2026-09-20T18:00:23Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"1617643b634d1952a2e8fec0ed19557a\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.4385, \"HouseAge\": 17.0, \"AveRooms\": 4.508076, \"AveBedrms\": 1.234917, \"Population\": 378.0, \"AveOccup\": 4.42664, \"Latitude\": 37.14, \"Longitude\": -123.68}, \"prediction\": 4.4786, \"latency_ms\": 6.34}"
+          ],
+          [
+            "1789923724000000000",
+            "{\"ts\": \"2026-09-20T18:00:24Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"0aadacf037d7d19090bfd7922ed6d460\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.5964, \"HouseAge\": 15.0, \"AveRooms\": 6.201622, \"AveBedrms\": 1.242635, \"Population\": 2743.0, \"AveOccup\": 2.713454, \"Latitude\": 40.49, \"Longitude\": -116.07}, \"prediction\": 2.2589, \"latency_ms\": 5.63}"
+          ],
+          [
+            "1789923725000000000",
+            "{\"ts\": \"2026-09-20T18:00:25Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"52fef478d6948dedaafb429409c2cd73\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.0686, \"HouseAge\": 12.0, \"AveRooms\": 3.747336, \"AveBedrms\": 1.288277, \"Population\": 988.0, \"AveOccup\": 1.623297, \"Latitude\": 37.87, \"Longitude\": -116.78}, \"prediction\": 1.018, \"latency_ms\": 6.2}"
+          ],
+          [
+            "1789923726000000000",
+            "{\"ts\": \"2026-09-20T18:00:26Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"2dc378f27037e03480ea83977260ca26\", \"model_version\": \"4\", \"features\": {\"MedInc\": 5.4004, \"HouseAge\": 45.0, \"AveRooms\": 6.890431, \"AveBedrms\": 1.159611, \"Population\": 1462.0, \"AveOccup\": 3.247874, \"Latitude\": 36.62, \"Longitude\": -117.74}, \"prediction\": 0.6029, \"latency_ms\": 6.33}"
+          ],
+          [
+            "1789923727000000000",
+            "{\"ts\": \"2026-09-20T18:00:27Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"6e3bbc975bcb937020e27c17112ed1df\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.916, \"HouseAge\": 20.0, \"AveRooms\": 5.234094, \"AveBedrms\": 1.14743, \"Population\": 2077.0, \"AveOccup\": 4.009635, \"Latitude\": 40.16, \"Longitude\": -120.28}, \"prediction\": 2.1075, \"latency_ms\": 7.62}"
+          ],
+          [
+            "1789923728000000000",
+            "{\"ts\": \"2026-09-20T18:00:28Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"81012ad6c086ee530de44e651478c7b9\", \"model_version\": \"4\", \"features\": {\"MedInc\": 5.0347, \"HouseAge\": 47.0, \"AveRooms\": 3.203834, \"AveBedrms\": 1.154575, \"Population\": 536.0, \"AveOccup\": 4.266378, \"Latitude\": 35.59, \"Longitude\": -117.14}, \"prediction\": 4.4374, \"latency_ms\": 6.57}"
+          ],
+          [
+            "1789923729000000000",
+            "{\"ts\": \"2026-09-20T18:00:29Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"f4e64fe649b29bbe7deb30ade2bce763\", \"model_version\": \"4\", \"features\": {\"MedInc\": 7.2739, \"HouseAge\": 6.0, \"AveRooms\": 7.285351, \"AveBedrms\": 1.29845, \"Population\": 3198.0, \"AveOccup\": 3.577649, \"Latitude\": 33.71, \"Longitude\": -122.91}, \"prediction\": 4.0684, \"latency_ms\": 7.56}"
+          ],
+          [
+            "1789923730000000000",
+            "{\"ts\": \"2026-09-20T18:00:30Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"d0cce893e7b227e94665ea199d106a37\", \"model_version\": \"4\", \"features\": {\"MedInc\": 6.4891, \"HouseAge\": 51.0, \"AveRooms\": 7.652917, \"AveBedrms\": 0.926206, \"Population\": 1637.0, \"AveOccup\": 3.331334, \"Latitude\": 35.02, \"Longitude\": -121.03}, \"prediction\": 2.5082, \"latency_ms\": 3.78}"
+          ],
+          [
+            "1789923731000000000",
+            "{\"ts\": \"2026-09-20T18:00:31Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"efb82825a2f65e362946538867498314\", \"model_version\": \"4\", \"features\": {\"MedInc\": 8.7146, \"HouseAge\": 35.0, \"AveRooms\": 4.041617, \"AveBedrms\": 1.005147, \"Population\": 2272.0, \"AveOccup\": 2.212198, \"Latitude\": 36.12, \"Longitude\": -122.25}, \"prediction\": 1.7241, \"latency_ms\": 4.29}"
+          ],
+          [
+            "1789923732000000000",
+            "{\"ts\": \"2026-09-20T18:00:32Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"e1edcf3eb050864e947dbe2d857de96d\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.0147, \"HouseAge\": 21.0, \"AveRooms\": 3.575394, \"AveBedrms\": 1.112288, \"Population\": 2806.0, \"AveOccup\": 4.074867, \"Latitude\": 41.59, \"Longitude\": -119.76}, \"prediction\": 4.4428, \"latency_ms\": 3.76}"
+          ],
+          [
+            "1789923733000000000",
+            "{\"ts\": \"2026-09-20T18:00:33Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"3ae4615571395e7114d5aea4c3bf64e9\", \"model_version\": \"4\", \"features\": {\"MedInc\": 5.2856, \"HouseAge\": 30.0, \"AveRooms\": 6.689616, \"AveBedrms\": 1.048586, \"Population\": 1739.0, \"AveOccup\": 4.471495, \"Latitude\": 38.01, \"Longitude\": -120.67}, \"prediction\": 1.2777, \"latency_ms\": 7.21}"
+          ],
+          [
+            "1789923734000000000",
+            "{\"ts\": \"2026-09-20T18:00:34Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"263cc4dc38bd3c6908a6ab0fbf433e03\", \"model_version\": \"4\", \"features\": {\"MedInc\": 1.3863, \"HouseAge\": 38.0, \"AveRooms\": 4.268263, \"AveBedrms\": 1.155695, \"Population\": 2599.0, \"AveOccup\": 4.285378, \"Latitude\": 40.94, \"Longitude\": -117.02}, \"prediction\": 1.7803, \"latency_ms\": 6.38}"
+          ],
+          [
+            "1789923735000000000",
+            "{\"ts\": \"2026-09-20T18:00:35Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"1b3a953c4dc1d3275aded3ca912eda41\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.3415, \"HouseAge\": 28.0, \"AveRooms\": 7.477712, \"AveBedrms\": 0.952809, \"Population\": 1130.0, \"AveOccup\": 3.337558, \"Latitude\": 33.12, \"Longitude\": -123.67}, \"prediction\": 2.8016, \"latency_ms\": 5.74}"
+          ],
+          [
+            "1789923736000000000",
+            "{\"ts\": \"2026-09-20T18:00:36Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"263961d1b51cecef3e5bcce6cd2f4934\", \"model_version\": \"4\", \"features\": {\"MedInc\": 4.3059, \"HouseAge\": 24.0, \"AveRooms\": 5.945458, \"AveBedrms\": 0.981674, \"Population\": 2755.0, \"AveOccup\": 3.985415, \"Latitude\": 34.16, \"Longitude\": -124.06}, \"prediction\": 2.4838, \"latency_ms\": 2.45}"
+          ],
+          [
+            "1789923737000000000",
+            "{\"ts\": \"2026-09-20T18:00:37Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"service\": \"inference\", \"request_id\": \"a5464f6d983fd97359af6769e486737d\", \"model_version\": \"4\", \"features\": {\"MedInc\": 2.1575, \"HouseAge\": 47.0, \"AveRooms\": 6.910781, \"AveBedrms\": 1.060781, \"Population\": 1282.0, \"AveOccup\": 4.401406, \"Latitude\": 33.22, \"Longitude\": -116.16}, \"prediction\": 3.0453, \"latency_ms\": 6.21}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "namespace": "production",
+          "app": "inference",
+          "pod": "inference-7c9f4d8b6c-4q2xv"
+        },
+        "values": [
+          [
+            "1789923800000000000",
+            "{\"ts\": \"2026-09-20T18:03:20Z\", \"level\": \"INFO\", \"event\": \"request\", \"service\": \"inference\", \"request_id\": \"0f2c\", \"model_version\": \"3\", \"method\": \"POST\", \"path\": \"/predict\", \"status\": 200, \"latency_ms\": 4.1}"
+          ],
+          [
+            "1789923801000000000",
+            "{\"ts\": \"2026-09-20T18:03:21Z\", \"level\": \"INFO\", \"event\": \"prediction\", \"serv"
+          ]
+        ]
+      }
+    ],
+    "stats": {
+      "summary": {
+        "totalLinesProcessed": 100
+      }
+    }
+  }
+}

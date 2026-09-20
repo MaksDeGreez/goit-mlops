@@ -1,0 +1,30 @@
+# Roles, role bindings and service accounts, wave 0.
+#
+# Plain manifests in final-project/rbac: the two human roles
+# (mlops-engineer and viewer), the rights the Step Functions state machine
+# needs to start a training Job, and the service accounts the workloads use.
+# They come first because everything after them runs under one of them.
+#
+# There is no destination namespace here on purpose. Some of these objects are
+# cluster wide and the namespaced ones each name their own namespace, so
+# adding one would only be a second source of truth.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rbac
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: {{ .Values.basePath }}/rbac
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

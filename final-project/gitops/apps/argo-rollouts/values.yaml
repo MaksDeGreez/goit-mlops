@@ -1,0 +1,47 @@
+# Argo Rollouts: the controller that runs the canary deployment of the
+# inference service and can stop it by itself when the new version misbehaves.
+#
+# It only installs the controller and its CustomResourceDefinitions. The
+# Rollout objects themselves are part of the inference chart.
+
+# The CRDs come with the chart. keepCRDs means they survive an uninstall, so a
+# Rollout object is never deleted by accident while the controller is replaced.
+installCRDs: true
+keepCRDs: true
+
+# The controller watches every namespace, because the Rollouts live in
+# "staging" and "production" while the controller runs in "mlops-system".
+clusterInstall: true
+
+controller:
+  # Two replicas are the default and give a hot standby. One is enough here:
+  # only one of them is the leader anyway, and a restart costs a few seconds
+  # in which no rollout step is made.
+  replicas: 1
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  metrics:
+    # A Service for the controller metrics, so Prometheus can scrape how many
+    # rollouts are running and how many were aborted.
+    enabled: true
+    service:
+      port: 8090
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8090"
+
+# The web dashboard needs its own Deployment and Service and shows the same
+# information as "kubectl argo rollouts get rollout". It stays off.
+dashboard:
+  enabled: false
+
+# There is no notification controller in this project; alerts come from
+# Grafana.
+notifications:
+  enabled: false

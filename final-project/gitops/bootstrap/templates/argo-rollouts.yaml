@@ -1,0 +1,34 @@
+# Argo Rollouts, wave 0.
+#
+# It has to exist before anything else, because its CustomResourceDefinitions
+# are what makes a "Rollout" object mean something. The inference chart in
+# wave 3 would not even apply without them.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    # Deleting the root Application then also deletes everything this one
+    # created. Without it the workloads are left behind in the cluster.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.argoRollouts.repoURL | quote }}
+      chart: {{ .Values.charts.argoRollouts.name }}
+      targetRevision: {{ .Values.charts.argoRollouts.version | quote }}
+      helm:
+        releaseName: argo-rollouts
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/argo-rollouts/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.platform }}
+  {{/* The Rollout CustomResourceDefinition is far bigger than the 256 KB that
+       a client-side apply stores in an annotation. Server-side apply does not
+       use that annotation at all. */}}
+  {{- include "bootstrap.syncPolicy" (dict "extraSyncOptions" (list "ServerSideApply=true")) | nindent 2 }}

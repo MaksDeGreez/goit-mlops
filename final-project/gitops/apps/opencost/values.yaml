@@ -33,6 +33,9 @@ opencost:
 
   exporter:
     apiPort: 9003
+    # The name that shows up on the metrics. The Application overwrites it with
+    # the cluster name Terraform knows, so the value below is only a fallback
+    # for "helm template".
     defaultClusterId: mlops-final
     resources:
       requests:

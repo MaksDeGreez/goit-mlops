@@ -1,6 +1,10 @@
 # OpenCost, wave 2.
 #
 # It queries Prometheus on start, so it comes after it.
+#
+# The name of the cluster is the one value it needs from Terraform: it becomes
+# the "cluster" label on every cost metric, and the cost dashboard filters on
+# it. Passing it here keeps the name in one place instead of two.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -20,6 +24,10 @@ spec:
         releaseName: opencost
         valueFiles:
           - $values/{{ .Values.basePath }}/gitops/apps/opencost/values.yaml
+        valuesObject:
+          opencost:
+            exporter:
+              defaultClusterId: {{ .Values.clusterName | quote }}
     {{- include "bootstrap.valuesSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc

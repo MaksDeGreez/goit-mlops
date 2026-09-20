@@ -8,6 +8,9 @@ therefore the real code: the checksum, the deserialization and the prediction.
 
 from __future__ import annotations
 
+import io
+import json
+import logging
 import shutil
 from pathlib import Path
 
@@ -19,6 +22,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from inference.logging_setup import configure_logging
 from inference.model_hash import model_file_sha256
 from inference.model_store import VersionInfo
 from inference.schemas import FEATURE_COLUMNS
@@ -71,6 +75,33 @@ def saved_model_dir(tmp_path_factory) -> Path:
 @pytest.fixture(scope="session")
 def saved_model_sha256(saved_model_dir: Path) -> str:
     return model_file_sha256(saved_model_dir)
+
+
+class LogReader:
+    """Reads back the JSON lines the service logged during a test."""
+
+    def __init__(self, stream: io.StringIO) -> None:
+        self._stream = stream
+
+    def lines(self) -> list[dict]:
+        return [json.loads(line) for line in self._stream.getvalue().splitlines() if line]
+
+    def events(self, event: str) -> list[dict]:
+        return [line for line in self.lines() if line.get("event") == event]
+
+    def last(self, event: str) -> dict:
+        found = self.events(event)
+        assert found, f"no {event} event in the log"
+        return found[-1]
+
+
+@pytest.fixture
+def log_reader():
+    """Catch the log in memory instead of on stdout."""
+    stream = io.StringIO()
+    configure_logging("DEBUG", stream)
+    yield LogReader(stream)
+    logging.getLogger().handlers = []
 
 
 class FakeSource:

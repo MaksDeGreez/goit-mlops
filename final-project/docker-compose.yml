@@ -1,0 +1,192 @@
+# The whole platform on one machine.
+#
+# It is the same picture as the cluster, only smaller: MLflow with a Postgres
+# behind it, two copies of the prediction API (one following the alias
+# "staging", one following "production") and a PushGateway for the drift job.
+# Everything a Kubernetes Job does in the cluster is a "docker compose run"
+# here.
+#
+#   cp .env.example .env
+#   docker compose up -d --wait
+#   scripts/local_e2e.sh
+#   docker compose down -v
+#
+# The tools are in the profile "tools", so "up" starts the servers only.
+
+name: final-project
+
+services:
+  # ---------------------------------------------------------------- servers
+
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env first}
+      POSTGRES_DB: mlflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow -d mlflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  mlflow:
+    image: burakince/mlflow:3.16.0
+    # --serve-artifacts makes the server hand out the model files itself, so a
+    # client needs nothing but the tracking URI. One worker is enough for a
+    # laptop and keeps the memory down: MLflow 3 starts four otherwise.
+    #
+    # --allowed-hosts is not optional. MLflow 3 checks the Host header against
+    # localhost and the private address ranges, and a client that connects to
+    # "http://mlflow:5000" sends the name, not an address. Without the name in
+    # this list every call comes back as 403 "possible DNS rebinding attack".
+    # The same will be true in the cluster for the service DNS name.
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --workers=1
+      - --allowed-hosts=localhost,localhost:5000,127.0.0.1,127.0.0.1:5000,mlflow,mlflow:5000
+      - --backend-store-uri=postgresql://mlflow:${POSTGRES_PASSWORD}@postgres:5432/mlflow
+      - --serve-artifacts
+      - --artifacts-destination=/mlflow/artifacts
+    ports:
+      # 5001 on the machine, not 5000: on macOS the AirPlay receiver already
+      # listens on 5000 and answers 403 to everything. Inside the network the
+      # server keeps its normal port.
+      - "5001:5000"
+    volumes:
+      - mlflow-artifacts:/mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl, but it does have Python.
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:5000/health", timeout=2)
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  pushgateway:
+    image: prom/pushgateway:v1.11.3
+    ports:
+      - "9091:9091"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9091/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Follows the alias "staging", so the newest trained version is served a few
+  # seconds after the training job finishes. This is the pod that has no model
+  # at all when the stack starts: it stays "not ready" and picks one up later.
+  inference-staging:
+    build:
+      context: .
+      dockerfile: services/inference/Dockerfile
+    image: final-project/inference:local
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: california-housing
+      MODEL_ALIAS: staging
+      # 60 seconds in the cluster. Ten makes the demo bearable.
+      MODEL_RELOAD_SECONDS: "10"
+      LOG_LEVEL: INFO
+    ports:
+      - "8001:8000"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    # Only /tmp has to be writable: the model is downloaded into a temporary
+    # folder. This is the same setting the Deployment uses in the cluster.
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+  # Follows the alias "production", which only registry-ops moves.
+  inference-production:
+    build:
+      context: .
+      dockerfile: services/inference/Dockerfile
+    image: final-project/inference:local
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: california-housing
+      MODEL_ALIAS: production
+      MODEL_RELOAD_SECONDS: "10"
+      LOG_LEVEL: INFO
+    ports:
+      - "8002:8000"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ tools
+  #
+  # These run once and exit. They are in a profile so that "up" does not start
+  # them; use "docker compose run --rm <name> [arguments]".
+
+  training:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: services/training/Dockerfile
+    image: final-project/training:local
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: california-housing
+      EXPERIMENT_NAME: california-housing
+      GIT_SHA: ${GIT_SHA:-local}
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  registry-ops:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: services/registry-ops/Dockerfile
+    image: final-project/registry-ops:local
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: california-housing
+      ACTOR: ${ACTOR:-local}
+      GIT_SHA: ${GIT_SHA:-local}
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  drift-monitor:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: services/drift-monitor/Dockerfile
+    image: final-project/drift-monitor:local
+    environment:
+      PUSHGATEWAY_URL: http://pushgateway:9091
+      # There is no Loki on a laptop, so the job is started with
+      # "--current-csv" and a file of the traffic that was really sent.
+      MIN_SAMPLES: "100"
+    depends_on:
+      pushgateway:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  mlflow-artifacts:

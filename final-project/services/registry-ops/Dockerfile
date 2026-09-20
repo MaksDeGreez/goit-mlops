@@ -1,6 +1,6 @@
 # Image of the registry tool.
 #
-# It runs as a Kubernetes Job, started by an Argo CD PreSync hook. The build
+# It runs as a Kubernetes Job, started by an Argo CD PostSync hook. The build
 # context is final-project/, the same as for the other services.
 #
 #   cd final-project

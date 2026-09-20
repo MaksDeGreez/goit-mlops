@@ -10,9 +10,11 @@ uv run python -m registry_ops list
 uv run python -m registry_ops promote --version 3
 ```
 
-In the cluster it runs as a Kubernetes Job: an ArgoCD `PreSync` hook calls
+In the cluster it runs as a Kubernetes Job: an ArgoCD `PostSync` hook calls
 `sync --production-version N` with the version from the production values file, so the registry
-always agrees with Git.
+always agrees with Git. The hook is `PostSync` and not `PreSync` on purpose: ArgoCD only runs it
+after the Application is Healthy, which for a `Rollout` means the canary has finished. A canary that
+was aborted therefore leaves the registry naming the old version, which is the truth.
 
 ## Commands
 

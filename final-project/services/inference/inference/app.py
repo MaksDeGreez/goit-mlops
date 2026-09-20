@@ -373,6 +373,10 @@ def current_version(app: FastAPI) -> str | None:
 
 
 def field_name(location: tuple) -> str:
-    """Turn the position pydantic reports into a field name."""
-    parts = [str(part) for part in location if part != "body"]
+    """Turn the position pydantic reports into a field name.
+
+    Only names are kept. A body that is not even JSON is reported at the
+    character where parsing stopped, and that number says nothing useful.
+    """
+    parts = [part for part in location if isinstance(part, str) and part != "body"]
     return ".".join(parts) if parts else "body"

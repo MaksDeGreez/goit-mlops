@@ -145,6 +145,7 @@ def test_a_body_that_is_not_json_is_refused_with_400(client):
 
     assert response.status_code == 400
     assert response.json()["error"] == "validation_error"
+    assert response.json()["detail"][0]["field"] == "body"
 
 
 def test_the_answer_never_contains_the_value_that_was_refused(client):

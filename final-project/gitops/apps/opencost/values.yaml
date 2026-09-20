@@ -1,0 +1,57 @@
+# OpenCost: what this cluster costs.
+#
+# It reads the public AWS price list, looks at what each pod really asks for
+# and exports both as Prometheus metrics. The cost dashboard in Grafana is
+# built from those metrics, which answers the "show the cost" part of the
+# assignment without an extra AWS bill for Cost Explorer queries.
+#
+# Prometheus scrapes it at opencost.monitoring.svc.cluster.local:9003; the
+# scrape job is in the Prometheus values.
+
+# Keeps the Service and Deployment called plainly "opencost".
+fullnameOverride: opencost
+
+# "clusterName" is NOT a display name in this chart: it is the DNS domain of
+# the cluster, and it is pasted into the Prometheus address as
+# "prometheus-server.monitoring.svc.<clusterName>". Setting it to the name of
+# the EKS cluster broke that address. The name that shows up on the metrics is
+# defaultClusterId further down.
+clusterName: cluster.local
+
+service:
+  enabled: true
+  type: ClusterIP
+
+opencost:
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: prometheus-server
+      namespaceName: monitoring
+      port: 80
+      scheme: http
+
+  exporter:
+    apiPort: 9003
+    defaultClusterId: mlops-final
+    resources:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+  # The chart also ships a small web UI. Grafana already shows these numbers,
+  # and the UI would be a second pod plus a second port-forward.
+  ui:
+    enabled: false
+
+  # A server that lets an AI agent query the cost data. Nothing here uses it.
+  mcp:
+    enabled: false
+
+  metrics:
+    serviceMonitor:
+      # There is no Prometheus Operator in this cluster, so a ServiceMonitor
+      # would be a CustomResource nothing reads. The scrape job is static.
+      enabled: false

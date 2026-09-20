@@ -1,0 +1,27 @@
+# OpenCost, wave 2.
+#
+# It queries Prometheus on start, so it comes after it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opencost
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.opencost.repoURL | quote }}
+      chart: {{ .Values.charts.opencost.name }}
+      targetRevision: {{ .Values.charts.opencost.version | quote }}
+      helm:
+        releaseName: opencost
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/opencost/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

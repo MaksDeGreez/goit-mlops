@@ -1,0 +1,59 @@
+# Code quality checks for the final project.
+#
+# The job runs the same pre-commit hooks that run locally, so a pull request
+# cannot bring in badly formatted code or a hardcoded secret. It needs no AWS
+# access and creates nothing.
+name: final-project-ci
+
+on:
+  push:
+    branches:
+      - final-project
+      - main
+    paths:
+      - "final-project/**"
+      - ".github/workflows/final-project-ci.yml"
+      - ".pre-commit-config.yaml"
+  pull_request:
+    branches:
+      - final-project
+      - main
+    paths:
+      - "final-project/**"
+      - ".github/workflows/final-project-ci.yml"
+      - ".pre-commit-config.yaml"
+  workflow_dispatch:
+
+# The job only reads the code.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Run the pre-commit hooks
+    # arm64 runners are free for public repositories and match the machine the
+    # project is developed on.
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: "final-project/uv.lock"
+
+      - name: Install Terraform
+        # The terraform fmt hook calls the terraform binary.
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Install the Python tools
+        working-directory: final-project
+        run: uv sync --locked
+
+      - name: Run the checks
+        run: uv run --project final-project pre-commit run --all-files --show-diff-on-failure

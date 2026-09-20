@@ -232,6 +232,11 @@ development machine (arm64 Mac):
 * the process needs about **220 MB** of memory with the model loaded;
 * a new version behind the alias was in use **within one `MODEL_RELOAD_SECONDS` interval**.
 
+In the container the same prediction first took **68 ms**. One row is far too
+little work to share between threads, and all of that time went into starting
+and synchronising the OpenMP threads scikit-learn uses. The image therefore
+sets `OMP_NUM_THREADS=1`, which brings the prediction back to **3.3 ms**.
+
 ## Tests
 
 ```bash

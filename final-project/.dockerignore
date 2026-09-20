@@ -1,0 +1,35 @@
+# What Docker must not copy into the build context.
+#
+# The context for every image is this folder, because the training job needs
+# data/california_housing.csv and the drift job needs data/reference.csv. This
+# file keeps the context small and keeps local files out of the images.
+
+# Virtual environments and caches. They are large and belong to the machine
+# they were made on.
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+.cache/
+
+# Tests and the local Python pin. The images only ship the packages.
+**/tests
+**/.python-version
+
+# Documentation, infrastructure and CI. None of it runs inside an image.
+docs/
+gitops/
+terraform/
+scripts/
+**/*.md
+.gitlab-ci.yml
+docker-compose.yml
+.dockerignore
+
+# Local settings. Nothing that can hold a secret is ever copied.
+.env
+.env.*
+
+# macOS
+**/.DS_Store

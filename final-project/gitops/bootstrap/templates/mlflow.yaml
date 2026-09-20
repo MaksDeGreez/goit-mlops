@@ -1,0 +1,37 @@
+# MLflow, wave 1.
+#
+# Two values cannot be written into the values file: the bucket name carries a
+# random suffix, and the region belongs to the Terraform configuration. They
+# are passed here instead, on top of the file.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlflow
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.mlflow.repoURL | quote }}
+      chart: {{ .Values.charts.mlflow.name }}
+      targetRevision: {{ .Values.charts.mlflow.version | quote }}
+      helm:
+        releaseName: mlflow
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/mlflow/values.yaml
+        valuesObject:
+          artifactRoot:
+            s3:
+              bucket: {{ .Values.mlflowArtifactBucket | quote }}
+          extraEnvVars:
+            # boto3 needs a region. EKS Pod Identity only hands over the
+            # credentials, not the region.
+            AWS_DEFAULT_REGION: {{ .Values.awsRegion | quote }}
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.platform }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

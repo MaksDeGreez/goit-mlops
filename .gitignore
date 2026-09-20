@@ -28,6 +28,17 @@ __pycache__/
 .ruff_cache/
 # note: .python-version IS committed on purpose (uv reproducibility)
 
+# Test coverage reports
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# MLflow — local runs and artifacts written when a script is started outside
+# the cluster. The real tracking server keeps them in Postgres and S3.
+mlruns/
+mlartifacts/
+
 # Kubernetes / cloud credentials
 kubeconfig
 kubeconfig*.yaml

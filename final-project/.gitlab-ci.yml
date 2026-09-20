@@ -1,0 +1,60 @@
+# GitLab CI version of .github/workflows/final-project-ci.yml.
+#
+# The project is hosted on GitHub, so the pipeline that really runs is the
+# GitHub Actions one. This file is the same pipeline written for GitLab and it
+# was tested locally with gitlab-ci-local.
+#
+# GitLab expects the CI file in the root of the repository. To use this one,
+# set "CI/CD configuration file" in Settings -> CI/CD -> General pipelines to
+# final-project/.gitlab-ci.yml.
+
+stages:
+  - lint
+
+pre-commit:
+  stage: lint
+  # The image already contains Python 3.13 and uv, and it is built for both
+  # amd64 and arm64.
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+  variables:
+    TERRAFORM_VERSION: "1.15.5"
+    # Keep the hook environments inside the project so GitLab can cache them.
+    PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
+
+  cache:
+    key: pre-commit-$TERRAFORM_VERSION
+    paths:
+      - .cache/pre-commit
+
+  before_script:
+    - |
+      set -eu
+
+      # git is needed by pre-commit, unzip by the Terraform download.
+      apt-get update -qq
+      apt-get install -y -qq --no-install-recommends ca-certificates curl git unzip
+
+      # The terraform fmt hook calls the terraform binary, so install it.
+      ARCH=$(dpkg --print-architecture)
+      curl -fsSL -o /tmp/terraform.zip \
+        "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip"
+      unzip -q -o /tmp/terraform.zip -d /usr/local/bin
+      terraform version
+
+      # gitlab-ci-local copies the files without the git history, so give
+      # pre-commit a repository to work with.
+      git config --global --add safe.directory "$CI_PROJECT_DIR"
+      git rev-parse --git-dir >/dev/null 2>&1 || {
+        git init -q .
+        git add -A
+      }
+
+  script:
+    - uv sync --locked --project final-project
+    - uv run --project final-project pre-commit run --all-files --show-diff-on-failure
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "final-project"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

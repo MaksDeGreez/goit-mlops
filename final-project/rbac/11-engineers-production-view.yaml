@@ -1,0 +1,17 @@
+# Production: look, do not touch. What runs there comes from a commit, so an
+# engineer reads everything except the Secrets and changes nothing.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mlops-engineers-view
+  namespace: production
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-viewer
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: mlops-engineers

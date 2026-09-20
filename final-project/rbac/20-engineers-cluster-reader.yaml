@@ -1,0 +1,16 @@
+# Namespaces, nodes, storage classes and custom resource definitions. Nothing
+# with data in it, so this one binding may be cluster wide.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mlops-engineers-cluster-reader
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-cluster-reader
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: mlops-engineers

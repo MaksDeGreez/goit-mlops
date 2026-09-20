@@ -1,0 +1,16 @@
+# The MLflow interface is reached with a port-forward.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mlops-engineers-port-forward
+  namespace: mlops-system
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-port-forward
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: mlops-engineers

@@ -1,0 +1,16 @@
+# Read production, including the Rollout and its analysis runs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: viewers-view
+  namespace: production
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-viewer
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: viewers

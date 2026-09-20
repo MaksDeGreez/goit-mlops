@@ -1,0 +1,18 @@
+# Port forwarding.
+#
+# Nothing in this project is public, so this is how a person reaches the
+# MLflow, Grafana, Prometheus and ArgoCD interfaces, and how an engineer asks
+# one production pod what model it is serving.
+#
+# It is a role of its own because it is not read-only: a port-forward opens a
+# tunnel into the pod network. A viewer never gets one.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mlops-final-port-forward
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+rules:
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["get", "create"]

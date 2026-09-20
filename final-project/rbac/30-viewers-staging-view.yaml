@@ -1,0 +1,17 @@
+# A viewer reads, and only reads, in the four namespaces of the project and in
+# argocd. No Secrets, no exec, no port-forward anywhere.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: viewers-view
+  namespace: staging
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-viewer
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: viewers

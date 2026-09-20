@@ -1,0 +1,18 @@
+# The Step Functions state machine starts the training job. Its IAM role lands
+# in this group through an EKS access entry made by Terraform, and this is the
+# only thing the group may do: one namespace, one kind of object.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: stepfunctions-runners-job-runner
+  namespace: mlops-system
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-job-runner
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: stepfunctions-runners

@@ -1,8 +1,13 @@
-# Code quality checks for the final project.
+# Checks for the final project: style, tests, images and secrets.
 #
-# The job runs the same pre-commit hooks that run locally, so a pull request
-# cannot bring in badly formatted code or a hardcoded secret. It needs no AWS
-# access and creates nothing.
+# | Job            | What it does                                            |
+# |----------------|---------------------------------------------------------|
+# | lint           | the same pre-commit hooks that run on the machine        |
+# | test           | the unit tests of each of the four services              |
+# | build-and-scan | builds each image and scans it with Trivy                |
+# | secret-scan    | a full gitleaks scan, not only of the staged changes     |
+#
+# Nothing here needs AWS and nothing is pushed anywhere yet.
 name: final-project-ci
 
 on:
@@ -57,3 +62,107 @@ jobs:
 
       - name: Run the checks
         run: uv run --project final-project pre-commit run --all-files --show-diff-on-failure
+
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      # One broken service should not hide the state of the other three.
+      fail-fast: false
+      matrix:
+        service: [training, inference, registry-ops, drift-monitor]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "final-project/services/${{ matrix.service }}/uv.lock"
+
+      - name: Install the dependencies
+        # --locked fails if the lock file does not match pyproject.toml, so the
+        # versions in CI are exactly the ones that were tested locally.
+        working-directory: final-project/services/${{ matrix.service }}
+        run: uv sync --locked
+
+      - name: Run the tests
+        working-directory: final-project/services/${{ matrix.service }}
+        run: uv run pytest -q
+
+  build-and-scan:
+    name: Build and scan ${{ matrix.service }}
+    runs-on: ubuntu-24.04-arm
+    needs: [lint, test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [training, inference, registry-ops, drift-monitor]
+
+    env:
+      IMAGE: final-project/${{ matrix.service }}:${{ github.sha }}
+      # Pinned, because the scanner decides whether the build passes.
+      TRIVY: aquasec/trivy:0.74.0
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Build the image
+        # The build context is final-project/ for every service: the training
+        # and drift images ship a file from data/.
+        working-directory: final-project
+        run: docker build -f "services/${{ matrix.service }}/Dockerfile" -t "$IMAGE" .
+
+      - name: Check that the image does not run as root
+        run: test "$(docker run --rm --entrypoint id "$IMAGE" -u)" = "10001"
+
+      - name: List the HIGH findings
+        # Only a report. Most of these come from the Debian base image or from
+        # a library we do not choose ourselves, and blocking on them would
+        # stop the pipeline on a day nobody changed anything.
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$RUNNER_TEMP/trivy:/root/.cache/trivy" \
+            "$TRIVY" image --quiet --scanners vuln --ignore-unfixed \
+            --severity HIGH --format table "$IMAGE"
+
+      - name: Fail on CRITICAL findings
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$RUNNER_TEMP/trivy:/root/.cache/trivy" \
+            "$TRIVY" image --quiet --scanners vuln --ignore-unfixed \
+            --severity CRITICAL --exit-code 1 --format table "$IMAGE"
+
+      # The image is not pushed anywhere yet. When ECR exists, the push goes
+      # here: log in with the OIDC role, tag the image with the commit sha and
+      # push it to the repository of this service.
+
+  secret-scan:
+    name: Look for secrets
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Scan the final project for secrets
+        # The pre-commit hook only sees the changes that are being committed,
+        # so in CI it would find nothing at all. This scans every file.
+        #
+        # Only the paths of this project are scanned. The graded homework
+        # folders contain demo credentials that were committed on purpose and
+        # are long deleted from AWS; an allowlist for them could also hide a
+        # real key here, and a narrower scan cannot.
+        run: |
+          for path in final-project .github/workflows; do
+            docker run --rm -v "$PWD:/repo:ro" -w /repo \
+              ghcr.io/gitleaks/gitleaks:v8.30.1 \
+              dir "$path" --no-banner --redact --exit-code 1
+          done

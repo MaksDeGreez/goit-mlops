@@ -80,6 +80,14 @@ uv run --project final-project pre-commit run --all-files
 
 The commands are run from the root because pre-commit needs to see the whole repository.
 
+All hooks passing locally:
+
+![pre-commit hooks passing](docs/screenshots/01-pre-commit-all-hooks.png)
+
+The same hooks run in GitHub Actions on every push (`final-project-ci`, job `lint`):
+
+![green lint run in GitHub Actions](docs/screenshots/02-ci-lint-green.png)
+
 ## Requirements
 
 | Tool | Version | Used for |

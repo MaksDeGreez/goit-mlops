@@ -275,7 +275,7 @@ push-images:
 
   rules:
     # Only on the project branch, and only once the AWS side exists.
-    - if: $CI_COMMIT_BRANCH == "final-project" && $AWS_ROLE_ARN != null
+    - if: $CI_COMMIT_BRANCH == "final-project" && $FINAL_AWS_ROLE_ARN != null
 
   before_script:
     - apk add --no-cache aws-cli jq
@@ -285,7 +285,7 @@ push-images:
       set -eu
 
       credentials="$(aws sts assume-role-with-web-identity \
-        --role-arn "$AWS_ROLE_ARN" \
+        --role-arn "$FINAL_AWS_ROLE_ARN" \
         --role-session-name "gitlab-$CI_JOB_ID" \
         --web-identity-token "$GITLAB_OIDC_TOKEN" \
         --duration-seconds 3600 \
@@ -342,7 +342,7 @@ train:
       description: "Train on this many rows only. Empty means the whole file."
 
   rules:
-    - if: $CI_COMMIT_BRANCH == "final-project" && $STATE_MACHINE_ARN != null
+    - if: $CI_COMMIT_BRANCH == "final-project" && $FINAL_STATE_MACHINE_ARN != null
       when: manual
       # A manual job that is never started must not hold the pipeline back.
       allow_failure: true
@@ -355,7 +355,7 @@ train:
       set -eu
 
       credentials="$(aws sts assume-role-with-web-identity \
-        --role-arn "$AWS_ROLE_ARN" \
+        --role-arn "$FINAL_AWS_ROLE_ARN" \
         --role-session-name "gitlab-train-$CI_JOB_ID" \
         --web-identity-token "$GITLAB_OIDC_TOKEN" \
         --duration-seconds 3600 \
@@ -378,7 +378,7 @@ train:
         '{image_tag: $tag, git_sha: $sha, params: $params}' <<<'{}')"
 
       arn="$(aws stepfunctions start-execution \
-        --state-machine-arn "$STATE_MACHINE_ARN" \
+        --state-machine-arn "$FINAL_STATE_MACHINE_ARN" \
         --name "gitlab-$CI_JOB_ID" \
         --input "$input" \
         --query executionArn --output text)"

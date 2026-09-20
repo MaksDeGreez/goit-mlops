@@ -1,5 +1,5 @@
 output "state_machine_arn" {
-  description = "ARN of the training state machine. Set it as the repository variable STATE_MACHINE_ARN in GitHub."
+  description = "ARN of the training state machine. Set it as the repository variable FINAL_STATE_MACHINE_ARN in GitHub."
   value       = aws_sfn_state_machine.training.arn
 }
 

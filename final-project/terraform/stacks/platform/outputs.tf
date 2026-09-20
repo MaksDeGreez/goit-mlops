@@ -3,7 +3,7 @@
 # scrollback, in CI output or in a screenshot by accident.
 
 output "state_machine_arn" {
-  description = "ARN of the training pipeline. Set it as the repository variable STATE_MACHINE_ARN in GitHub."
+  description = "ARN of the training pipeline. Set it as the repository variable FINAL_STATE_MACHINE_ARN in GitHub."
   value       = module.training_pipeline.state_machine_arn
 }
 

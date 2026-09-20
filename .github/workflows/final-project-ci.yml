@@ -12,7 +12,7 @@
 # | push-images    | pushes the four images to ECR, only when AWS exists     |
 #
 # Only push-images touches AWS, and it is skipped until the repository variable
-# AWS_ROLE_ARN is set. Training is not started here: that is a separate
+# FINAL_AWS_ROLE_ARN is set. Training is not started here: that is a separate
 # pipeline with its own trigger, .github/workflows/final-project-train.yml.
 name: final-project-ci
 
@@ -255,7 +255,7 @@ jobs:
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/final-project' &&
-      vars.AWS_ROLE_ARN != ''
+      vars.FINAL_AWS_ROLE_ARN != ''
 
     permissions:
       # Needed to ask GitHub for the OIDC token that AWS trusts. No access key
@@ -270,7 +270,7 @@ jobs:
       - name: Assume the CI role
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.FINAL_AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
           role-session-name: final-project-push-images
           # The registry host contains the account id and this repository is

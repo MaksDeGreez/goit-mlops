@@ -58,7 +58,7 @@ output "ecr_login_command" {
 }
 
 output "ci_role_arn" {
-  description = "ARN of the CI role. Set it as the repository variable AWS_ROLE_ARN in GitHub."
+  description = "ARN of the CI role. Set it as the repository variable FINAL_AWS_ROLE_ARN in GitHub."
   value       = module.ci_access.role_arn
 }
 

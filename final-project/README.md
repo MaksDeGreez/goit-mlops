@@ -210,7 +210,7 @@ GitHub OIDC provider and the CI role.
 Write down two outputs:
 
 ```bash
-terraform output ci_role_arn                 # -> repository variable AWS_ROLE_ARN
+terraform output ci_role_arn                 # -> repository variable FINAL_AWS_ROLE_ARN
 terraform output update_kubeconfig_command
 ```
 
@@ -229,11 +229,15 @@ variable is visible in the log, which makes a failing run much easier to read.
 
 | Variable | Value | From |
 |---|---|---|
-| `AWS_ROLE_ARN` | `arn:aws:iam::<account-id>:role/mlops-final-github-actions` | step 1, output `ci_role_arn` |
+| `FINAL_AWS_ROLE_ARN` | `arn:aws:iam::<account-id>:role/mlops-final-github-actions` | step 1, output `ci_role_arn` |
 | `AWS_REGION` | `us-east-1` | |
-| `STATE_MACHINE_ARN` | filled in at step 5 | |
+| `FINAL_STATE_MACHINE_ARN` | filled in at step 5 | |
 
-With `AWS_ROLE_ARN` set, the `push-images` job stops being skipped. Run it
+The names start with `FINAL_` on purpose: this repository also holds the homework of lesson 10,
+which uses the plain names `AWS_ROLE_ARN` and `STATE_MACHINE_ARN` for a role that no longer exists.
+Sharing them would make this pipeline try to assume that old role.
+
+With `FINAL_AWS_ROLE_ARN` set, the `push-images` job stops being skipped. Run it
 once: **Actions → final-project-ci → Run workflow** on branch `final-project`.
 It builds the four images and pushes them to ECR tagged with the **full 40
 character commit SHA**, and prints the result in the job summary without the
@@ -282,7 +286,7 @@ Application.
 Now fill in the third repository variable:
 
 ```bash
-terraform output state_machine_arn     # -> repository variable STATE_MACHINE_ARN
+terraform output state_machine_arn     # -> repository variable FINAL_STATE_MACHINE_ARN
 ```
 
 ### Step 6 — watch Argo CD sync
@@ -675,7 +679,7 @@ public repositories and the same architecture as the cluster.
 | `gitops` | `scripts/validate_gitops.sh`: renders every chart and checks it with kubeconform |
 | `build-and-scan` | builds each image, checks it does not run as root, Trivy: HIGH printed, CRITICAL fails |
 | `secret-scan` | a full gitleaks scan of `final-project/` and the workflow files |
-| `push-images` | pushes the four images to ECR, tagged with the commit SHA — skipped until `AWS_ROLE_ARN` is set |
+| `push-images` | pushes the four images to ECR, tagged with the commit SHA — skipped until `FINAL_AWS_ROLE_ARN` is set |
 
 Only `push-images` touches AWS, and it uses OIDC: no access key is stored
 anywhere. It skips an image whose tag is already in ECR, because ECR tags are

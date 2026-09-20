@@ -11,9 +11,9 @@
 #
 # It needs three repository variables. Set them from the Terraform outputs:
 #
-#   AWS_ROLE_ARN        stacks/infra    -> ci_role_arn
+#   FINAL_AWS_ROLE_ARN        stacks/infra    -> ci_role_arn
 #   AWS_REGION          us-east-1
-#   STATE_MACHINE_ARN   stacks/platform -> state_machine_arn
+#   FINAL_STATE_MACHINE_ARN   stacks/platform -> state_machine_arn
 name: final-project-train
 
 on:
@@ -50,8 +50,8 @@ jobs:
         # A clear message instead of an AWS error that is hard to read.
         run: |
           set -euo pipefail
-          if [ -z "${{ vars.STATE_MACHINE_ARN }}" ]; then
-            echo "STATE_MACHINE_ARN is not set. Apply stacks/platform first," \
+          if [ -z "${{ vars.FINAL_STATE_MACHINE_ARN }}" ]; then
+            echo "FINAL_STATE_MACHINE_ARN is not set. Apply stacks/platform first," \
               "then copy the output 'state_machine_arn' into the repository" \
               "variables." >&2
             exit 1
@@ -60,7 +60,7 @@ jobs:
       - name: Assume the CI role
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.FINAL_AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
           role-session-name: final-project-train
           # The state machine ARN contains the account id and this repository
@@ -111,7 +111,7 @@ jobs:
       - name: Start the execution and wait for it
         id: run
         env:
-          STATE_MACHINE_ARN: ${{ vars.STATE_MACHINE_ARN }}
+          FINAL_STATE_MACHINE_ARN: ${{ vars.FINAL_STATE_MACHINE_ARN }}
           INPUT: ${{ steps.input.outputs.input }}
         run: |
           set -euo pipefail
@@ -121,7 +121,7 @@ jobs:
           name="gh-${{ github.run_id }}-${{ github.run_attempt }}"
 
           arn="$(aws stepfunctions start-execution \
-            --state-machine-arn "$STATE_MACHINE_ARN" \
+            --state-machine-arn "$FINAL_STATE_MACHINE_ARN" \
             --name "$name" \
             --input "$INPUT" \
             --query executionArn --output text)"

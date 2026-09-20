@@ -10,6 +10,17 @@
 
 stages:
   - lint
+  - test
+  - build
+  - secret-scan
+
+# Every job runs on the same branches. GitLab has no "paths" filter on the
+# pipeline itself, so the rules are repeated through this anchor.
+.on_the_project_branches: &on_the_project_branches
+  rules:
+    - if: $CI_COMMIT_BRANCH == "final-project"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 pre-commit:
   stage: lint
@@ -54,7 +65,92 @@ pre-commit:
     - uv sync --locked --project final-project
     - uv run --project final-project pre-commit run --all-files --show-diff-on-failure
 
-  rules:
-    - if: $CI_COMMIT_BRANCH == "final-project"
-    - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  <<: *on_the_project_branches
+
+
+tests:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+  # One job per service, the same four the GitHub matrix builds.
+  parallel:
+    matrix:
+      - SERVICE: [training, inference, registry-ops, drift-monitor]
+
+  variables:
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+
+  cache:
+    key: uv-$SERVICE
+    paths:
+      - .cache/uv
+
+  script:
+    - cd "final-project/services/$SERVICE"
+    # --locked fails if the lock file does not match pyproject.toml.
+    - uv sync --locked
+    - uv run pytest -q
+
+  <<: *on_the_project_branches
+
+
+build-and-scan:
+  stage: build
+  # NOT tested on the development machine: gitlab-ci-local cannot start the
+  # docker-in-docker service a GitLab runner gives this job. The steps are the
+  # same ones the GitHub workflow runs, and those were tested.
+  image: docker:29-cli
+  services:
+    - docker:29-dind
+
+  parallel:
+    matrix:
+      - SERVICE: [training, inference, registry-ops, drift-monitor]
+
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: "tcp://docker:2376"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+    TRIVY_VERSION: "0.74.0"
+    IMAGE: "final-project/$SERVICE:$CI_COMMIT_SHA"
+
+  before_script:
+    # Shared GitLab runners are amd64. The scanner is a single binary, and
+    # installing it here lets it talk to the same daemon that built the image.
+    - apk add --no-cache curl tar
+    - curl -fsSL
+      "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+      | tar -xz -C /usr/local/bin trivy
+    - trivy --version
+
+  script:
+    - cd final-project
+    - docker build -f "services/$SERVICE/Dockerfile" -t "$IMAGE" .
+    - test "$(docker run --rm --entrypoint id "$IMAGE" -u)" = "10001"
+    # A report only, see the comment in the GitHub workflow.
+    - trivy image --quiet --scanners vuln --ignore-unfixed --severity HIGH
+      --format table "$IMAGE"
+    - trivy image --quiet --scanners vuln --ignore-unfixed --severity CRITICAL
+      --exit-code 1 --format table "$IMAGE"
+    # The push to ECR goes here once the registry exists.
+
+  <<: *on_the_project_branches
+
+
+secret-scan:
+  stage: secret-scan
+  image:
+    name: ghcr.io/gitleaks/gitleaks:v8.30.1
+    # The image starts gitleaks itself, and GitLab needs a shell instead.
+    entrypoint: [""]
+
+  script:
+    # The pre-commit hook only sees the changes that are being committed, so
+    # in CI it would find nothing. Only the paths of this project are scanned:
+    # the graded homework folders hold demo credentials that were committed on
+    # purpose, and an allowlist for them could also hide a real key here.
+    - gitleaks dir final-project --no-banner --redact --exit-code 1
+    - gitleaks dir .github/workflows --no-banner --redact --exit-code 1
+
+  <<: *on_the_project_branches

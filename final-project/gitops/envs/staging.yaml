@@ -17,7 +17,7 @@
 # commit and tags it with the full 40 character commit sha; change this line to
 # deploy another build. The value below is a short sha from a local build and
 # is replaced during the first deployment (see README, step 4).
-imageTag: 3c95938
+imageTag: 8f55c4ffbb729218427eb1a87f89af9e78e20301
 
 replicas: 2
 

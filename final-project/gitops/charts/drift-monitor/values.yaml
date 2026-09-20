@@ -16,7 +16,7 @@ pushgatewayUrl: http://pushgateway.monitoring.svc.cluster.local:9091
 # character commit sha. There is only one environment for this job, so the tag
 # lives here instead of in an envs/ file. The value below is a short sha from a
 # local build and is replaced during the first deployment.
-imageTag: 3c95938
+imageTag: 8f55c4ffbb729218427eb1a87f89af9e78e20301
 # Every 15 minutes. The window below is an hour, so runs overlap on purpose:
 # a short spike is seen four times instead of being missed once.
 schedule: "*/15 * * * *"

@@ -324,7 +324,7 @@ alerting:
             annotations:
               summary: No drift check finished in the last two hours.
               description: >-
-                The CronJob runs every hour. Two hours without a result means
+                The CronJob runs every 15 minutes. Two hours without a result means
                 the job failed, could not reach Loki or the PushGateway, or is
                 not scheduled at all. Check the Jobs in the mlops-system
                 namespace.

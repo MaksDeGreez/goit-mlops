@@ -54,17 +54,32 @@ Terraform passes six values into the root Application:
 | `opencost` | cost metrics | `opencost/opencost` | 2.5.31 | `monitoring` | 2 | 20m / 128Mi | - |
 | `inference-staging` | prediction service, follows the alias | own chart | - | `staging` | 3 | see `envs/staging.yaml` | - |
 | `inference-production` | prediction service, pinned version | own chart | - | `production` | 3 | see `envs/production.yaml` | - |
-| `drift-monitor` | hourly drift CronJob | own chart | - | `mlops-system` | 3 | see the chart | - |
+| `drift-monitor` | drift CronJob, every 15 minutes | own chart | - | `mlops-system` | 3 | see the chart | - |
 
 The Prometheus row counts the whole chart: the server, kube-state-metrics and
 node-exporter on both nodes.
 
-Together the components above ask for about **0.93 CPU and 3.6 GiB of memory**,
-of which 1.4 GiB is in `mlops-system` and 2.2 GiB in `monitoring`. The two
-`t4g.large` nodes have 4 CPUs and 16 GiB in total, and about 3.8 CPUs and
-12 GiB of that can be given to pods. The rest is for Argo CD, `kube-system` and
-the inference pods, which take 256Mi each and can be ten of them at once during
-a canary rollout.
+The numbers were read out of the rendered manifests by
+`scripts/validate_gitops.sh`, not estimated. Added up per namespace:
+
+| Namespace | CPU requests | Memory requests | Pods |
+|---|---|---|---|
+| `argocd` | 250m | 896Mi | 5 |
+| `mlops-system` | 350m | 1408Mi | 3 |
+| `monitoring` | 580m | 2240Mi | 10 |
+| `staging` | 100m | 512Mi | 2 |
+| `production` | 500m | 2560Mi | 10 |
+| short lived: drift job, registry hook, canary surge pod | up to 350m | up to 704Mi | up to 3 |
+
+The two `t4g.large` nodes have 4 CPUs and 16 GiB in total, of which about
+**3.8 CPUs and 12 GiB** can be given to pods. `kube-system` takes roughly
+another 0.7 CPU for the EKS add-ons. That leaves headroom, which it has to:
+during a canary production runs an eleventh pod.
+
+This is why the inference CPU request is `50m` in both `envs/` files and not
+the `100m` of the chart default. At `100m` the two inference namespaces alone
+would ask for 1.3 CPU, a third of the cluster, for pods that answer in about
+5 ms.
 
 ## Addresses other parts depend on
 

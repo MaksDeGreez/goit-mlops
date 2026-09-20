@@ -64,7 +64,10 @@ faultRate: 0
 logLevel: INFO
 
 # Ten pods, 256Mi each: 2.5Gi of memory requests for the whole namespace.
-cpuRequest: 100m
+# 50m and not the chart default of 100m: the two nodes have about 3.8 vCPU
+# between them, and a canary adds an eleventh pod on top of these ten. At the
+# default the namespace alone would ask for more than a quarter of the cluster.
+cpuRequest: 50m
 memoryRequest: 256Mi
 cpuLimit: ""
 memoryLimit: 384Mi

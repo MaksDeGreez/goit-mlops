@@ -35,7 +35,9 @@ faultRate: 0
 logLevel: INFO
 
 # Two pods, 256Mi each: 512Mi of memory requests for the whole namespace.
-cpuRequest: 100m
+# 50m and not the chart default of 100m: the two nodes have about 3.8 vCPU
+# between them, and up to 13 pods of this service can exist during a canary.
+cpuRequest: 50m
 memoryRequest: 256Mi
 cpuLimit: ""
 memoryLimit: 384Mi

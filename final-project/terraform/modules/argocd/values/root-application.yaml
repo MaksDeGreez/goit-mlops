@@ -1,0 +1,47 @@
+# Values for the argocd-apps Helm chart. The chart creates no workload of its
+# own: it only writes the root Application, which is the app of apps.
+#
+# This file is a Terraform template: the placeholders are filled in at apply
+# time. Only values that Argo CD cannot read from Git are passed this way; the
+# registry host is the important one, because it contains the AWS account id.
+
+applications:
+  ${application_name}:
+    namespace: ${argocd_namespace}
+    # The finalizer makes "kubectl delete application ${application_name}"
+    # remove everything the root Application created. That is the first step of
+    # the teardown, see terraform/README.md.
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    project: default
+    source:
+      repoURL: ${repo_url}
+      targetRevision: ${target_revision}
+      path: ${bootstrap_path}
+      helm:
+        valuesObject:
+          repoURL: ${repo_url}
+          targetRevision: ${target_revision}
+          imageRegistry: ${image_registry}
+          awsRegion: ${aws_region}
+          mlflowArtifactBucket: ${artifact_bucket}
+          clusterName: ${cluster_name}
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: ${argocd_namespace}
+    syncPolicy:
+      automated:
+        # Objects removed from Git are removed from the cluster.
+        prune: true
+        # Objects changed by hand in the cluster are put back.
+        selfHeal: true
+      syncOptions:
+        # Every namespace of this project is created by Terraform, so Argo CD
+        # never has to create one.
+        - CreateNamespace=false
+      retry:
+        limit: 5
+        backoff:
+          duration: 10s
+          factor: 2
+          maxDuration: 3m

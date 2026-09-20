@@ -1,0 +1,100 @@
+# Values for the argo-cd Helm chart.
+# Everything that is specific to this project lives here and not in main.tf.
+
+# Dex handles logins through GitHub, Google and similar providers. This project
+# logs in with the local admin user only, so Dex is off and the cluster runs
+# one pod less.
+dex:
+  enabled: false
+
+# The notification controller sends messages to Slack and email. Nothing is
+# wired up, so it would only use memory. Alerts come from Grafana instead.
+notifications:
+  enabled: false
+
+configs:
+  params:
+    # The UI is reached with "kubectl port-forward", so the server does not
+    # need to serve HTTPS itself.
+    server.insecure: true
+
+  cm:
+    # How often Argo CD looks at Git for new commits. The default is three
+    # minutes; 60 seconds makes "commit and watch it roll out" short enough to
+    # demonstrate.
+    timeout.reconciliation: 60s
+    timeout.hard.reconciliation: 0s
+
+    # This is the app of apps health check. Without it an Application is
+    # healthy as soon as it exists, so sync waves between Applications mean
+    # nothing and everything starts at once. With it the parent waits until
+    # each child Application really is healthy, which is what makes the wave
+    # order (postgres before MLflow, MLflow before inference) work.
+    resource.customizations.health.argoproj.io_Application: |
+      hs = {}
+      hs.status = "Progressing"
+      hs.message = ""
+      if obj.status ~= nil then
+        if obj.status.health ~= nil then
+          hs.status = obj.status.health.status
+          if obj.status.health.message ~= nil then
+            hs.message = obj.status.health.message
+          end
+        end
+      end
+      return hs
+
+  rbac:
+    # Anyone who logs in and is not mapped to a role may look, not change.
+    policy.default: role:readonly
+
+server:
+  # No load balancer and no public address. The service stays inside the
+  # cluster and is opened with port-forward when it is needed. This is the
+  # cheapest option and it keeps the UI off the internet.
+  service:
+    type: ClusterIP
+
+  extraArgs:
+    - --insecure
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      memory: 768Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+
+applicationSet:
+  # Not used by this project (the app of apps is a plain Helm chart), but the
+  # controller is small and turning it off is not worth a chart override.
+  resources:
+    requests:
+      cpu: 25m
+      memory: 96Mi
+    limits:
+      memory: 192Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 96Mi
+    limits:
+      memory: 192Mi

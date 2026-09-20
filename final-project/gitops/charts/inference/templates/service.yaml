@@ -1,0 +1,25 @@
+{{/*
+One Service in front of every pod of the release, old and new.
+
+That is the whole traffic split: the Service sends requests to all ready pods,
+so the share the new version gets is its share of the pods. Argo Rollouts does
+not touch this Service, because the canary here has no traffic router.
+
+Nothing in this project is public. The Service is a ClusterIP and the way in is
+  kubectl -n production port-forward svc/inference 8000:80
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "inference.name" . }}
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "inference.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

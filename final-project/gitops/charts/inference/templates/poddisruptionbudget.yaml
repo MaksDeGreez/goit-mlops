@@ -1,0 +1,18 @@
+{{- if .Values.pdbEnabled }}
+{{/*
+Keeps a node drain from taking the whole service down. The cluster has two
+nodes, so draining one of them would otherwise be allowed to evict every pod at
+once. Only production needs this; staging may go away for a minute.
+*/}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "inference.name" . }}
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdbMinAvailable }}
+  selector:
+    matchLabels:
+      {{- include "inference.selectorLabels" . | nindent 6 }}
+{{- end }}

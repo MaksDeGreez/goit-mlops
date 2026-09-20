@@ -1,0 +1,94 @@
+# Production values of the inference chart (namespace "production").
+#
+# ## How a model is promoted
+#
+# Change one line - modelVersion - and the line under it with the checksum of
+# that version, then commit:
+#
+#     modelVersion: "4"
+#     modelSha256: "9f2c...64 hex characters..."
+#
+#     git commit -am "Promote model version 4 to production"
+#
+# Both values come from the MLflow UI or from
+# "python -m registry_ops list" (columns "version" and "model_sha256").
+# ArgoCD sees the commit, the Rollout starts a canary, and after the canary the
+# PostSync hook moves the MLflow alias and stage to that version.
+#
+# ## How a rollback is done
+#
+#     git revert <the commit above>
+#
+# One command. The file goes back to the previous version, ArgoCD rolls the
+# pods back the same careful way, and the hook returns the MLflow registry to
+# the older version as well.
+#
+# ## How the automatic rollback is shown
+#
+# Set faultRate to 1 together with a new modelVersion and commit. The new pod
+# answers every /predict with a 500, the background analysis sees an error rate
+# of 1.0, and Argo Rollouts aborts the canary without anybody touching it.
+# Undo it with "git revert" afterwards.
+#
+# The image registry, the MLflow address and the Prometheus address are not
+# here. The ArgoCD Application passes them in, because the registry host
+# contains the AWS account id and that must not be written into a public
+# repository.
+
+# The container image of the service. The CI pipeline builds one image per
+# commit and tags it with the short git sha; change this line to deploy another
+# build.
+imageTag: 3c95938
+
+# Ten pods, so that one pod is exactly the 10 % of the first canary step.
+replicas: 10
+
+modelName: california-housing
+
+# ---- the two lines a promotion changes --------------------------------------
+# Empty until the first model has been trained and checked in staging. While it
+# is empty the pods fall back to the alias below, so the first deployment comes
+# up instead of waiting for a version that does not exist yet. The first
+# promotion fills both lines in, and from then on production is pinned: the
+# service ignores the alias as soon as a version is set.
+modelVersion: ""
+modelSha256: ""
+# -----------------------------------------------------------------------------
+
+modelAlias: staging
+modelReloadSeconds: 60
+
+rateLimit: 20/second
+# Fault injection, off. See "How the automatic rollback is shown" above.
+faultRate: 0
+logLevel: INFO
+
+# Ten pods, 256Mi each: 2.5Gi of memory requests for the whole namespace.
+cpuRequest: 100m
+memoryRequest: 256Mi
+cpuLimit: ""
+memoryLimit: 384Mi
+
+# ---- the canary ---------------------------------------------------------------
+canaryEnabled: true
+# 1 pod, then 5 pods, then all 10. The Rollout goes to 10/10 by itself after
+# the last step.
+canaryWeights: [10, 50]
+canaryPauseSeconds: 120
+revisionHistoryLimit: 3
+progressDeadlineSeconds: 600
+
+analysisEnabled: true
+# More than 5 % of 5xx from the new version and the canary is aborted.
+analysisErrorRateMax: 0.05
+analysisIntervalSeconds: 30
+analysisInitialDelaySeconds: 30
+analysisFailureLimit: 2
+
+# The PostSync hook that keeps the MLflow registry in step with this file.
+registrySyncEnabled: true
+registryOpsImageTag: 3c95938
+
+# Keep eight pods while a node is drained.
+pdbEnabled: true
+pdbMinAvailable: 8

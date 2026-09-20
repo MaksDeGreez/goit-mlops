@@ -1,0 +1,88 @@
+# Default values of the inference chart.
+#
+# The keys are flat on purpose. Deep nesting makes "--set" hard to read and
+# makes a wrong value hard to find, and these files are edited by hand on every
+# model promotion.
+#
+# These defaults are the safe ones: two replicas, the staging alias, no canary
+# steps, no analysis and no registry hook. The real settings of an environment
+# live in gitops/envs/staging.yaml and gitops/envs/production.yaml.
+
+# --- values the ArgoCD Application injects -----------------------------------
+# The ECR registry host. It contains the AWS account id, so it is never written
+# into this repository. Terraform passes it to the root Application and the
+# Application passes it here. Rendering fails when it is missing.
+imageRegistry: ""
+# Where the service looks for the model.
+mlflowTrackingUri: http://mlflow.mlops-system.svc.cluster.local:5000
+# Where the canary analysis sends its queries.
+prometheusAddress: http://prometheus-server.monitoring.svc.cluster.local
+# The commit ArgoCD is syncing. The Application sets it to $ARGOCD_APP_REVISION
+# so an audit line can be traced back to a commit.
+gitSha: unknown
+
+# --- the model ---------------------------------------------------------------
+imageTag: latest
+modelName: california-housing
+# Pin one version (production) or follow an alias (staging). Setting both is
+# not an error: the service ignores the alias when a version is pinned, but
+# leaving the unused one empty keeps the intention clear.
+modelVersion: ""
+modelAlias: staging
+# Optional extra checksum. When it is set the model file must match it as well,
+# not only the tag in the registry.
+modelSha256: ""
+# How often the alias is checked for a new version. Only used with an alias.
+modelReloadSeconds: 60
+
+# --- the service --------------------------------------------------------------
+replicas: 2
+rateLimit: 20/second
+# Share of /predict calls that fail on purpose. Only for the rollback demo.
+faultRate: 0
+logLevel: INFO
+
+# --- resources ---------------------------------------------------------------
+# One pod needs about 220 MB with the model loaded, so 256Mi is the honest
+# request and 384Mi leaves room for a request burst.
+cpuRequest: 100m
+memoryRequest: 256Mi
+# No CPU limit: the image already runs one thread (OMP_NUM_THREADS=1), and a
+# CPU limit would only add throttling to a service that answers in 4 ms.
+cpuLimit: ""
+memoryLimit: 384Mi
+
+# --- rollout -------------------------------------------------------------------
+# With canaryEnabled the update goes through the steps below. Without it the
+# Rollout does a plain rolling update, which is what staging wants.
+canaryEnabled: false
+# Share of the pods that runs the new version at each step. The Rollout goes to
+# 100 % by itself after the last step, so 100 is not in the list.
+canaryWeights: [10, 50]
+canaryPauseSeconds: 120
+revisionHistoryLimit: 3
+# A version that never becomes ready (a wrong checksum keeps readiness at 503)
+# has to end the rollout by itself. progressDeadlineAbort makes the Rollout
+# abort instead of waiting for a person.
+progressDeadlineSeconds: 600
+
+# --- canary analysis -----------------------------------------------------------
+analysisEnabled: false
+# Share of 5xx answers of the new version that is still acceptable.
+analysisErrorRateMax: 0.05
+analysisIntervalSeconds: 30
+# Time before the first measurement: the new pod has to start and Prometheus
+# has to scrape it at least twice.
+analysisInitialDelaySeconds: 30
+# Failed measurements the analysis tolerates. The third one aborts the rollout.
+analysisFailureLimit: 2
+
+# --- registry hook ---------------------------------------------------------------
+# Production only: a PostSync Job that makes the MLflow registry say what git
+# says. It is skipped when modelVersion is empty.
+registrySyncEnabled: false
+registryOpsImageTag: latest
+
+# --- PodDisruptionBudget ---------------------------------------------------------
+pdbEnabled: false
+pdbMinAvailable: 8

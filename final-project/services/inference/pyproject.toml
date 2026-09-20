@@ -1,0 +1,35 @@
+[project]
+name = "inference"
+version = "0.1.0"
+description = "Prediction API for the California Housing model"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    # mlflow-skinny is the same library without the tracking server and its
+    # extra dependencies. The service only downloads a model and loads it, so
+    # the small package is enough and the image stays smaller.
+    "mlflow-skinny>=3.16.1,<4",
+    "fastapi>=0.141,<0.142",
+    "uvicorn>=0.53,<0.54",
+    "pandas>=2.3,<3",
+    "prometheus-client>=0.26,<0.27",
+    "prometheus-fastapi-instrumentator>=8.0.1,<9",
+    "pyyaml>=6.0,<7",
+    "scikit-learn>=1.9.1,<2",
+    "slowapi>=0.1.10,<0.2",
+]
+
+[tool.uv]
+# The service is started as "python -m inference", not installed as a package.
+package = false
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<0.29",
+    "pytest>=9.1,<10",
+]
+
+[tool.pytest.ini_options]
+# Put the service folder on sys.path so "import inference" works without
+# installing the package.
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -10,9 +10,6 @@
 # The MLflow server itself is a Helm chart deployed by Argo CD, not by
 # Terraform.
 
-data "aws_caller_identity" "current" {}
-data "aws_partition" "current" {}
-
 # A bucket name has to be unique in the whole of AWS, and the account id may
 # not be published, so a random suffix is used instead.
 resource "random_string" "bucket_suffix" {

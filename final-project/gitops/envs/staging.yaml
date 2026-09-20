@@ -14,8 +14,9 @@
 # repository.
 
 # The container image of the service. The CI pipeline builds one image per
-# commit and tags it with the short git sha; change this line to deploy another
-# build.
+# commit and tags it with the full 40 character commit sha; change this line to
+# deploy another build. The value below is a short sha from a local build and
+# is replaced during the first deployment (see README, step 4).
 imageTag: 3c95938
 
 replicas: 2

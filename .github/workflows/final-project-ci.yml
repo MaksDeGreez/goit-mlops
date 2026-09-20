@@ -244,11 +244,16 @@ jobs:
     runs-on: ubuntu-24.04-arm
     needs: [build-and-scan]
 
-    # Only on a real push to the project branch, and only once the AWS side
-    # exists. Before that the repository variable is empty and the whole job is
-    # skipped, so the pipeline stays green.
+    # Only on the project branch, and only once the AWS side exists. Before
+    # that the repository variable is empty and the whole job is skipped, so
+    # the pipeline stays green.
+    #
+    # workflow_dispatch is allowed as well, and only for this reason: right
+    # after the first "terraform apply" the images have to be in ECR before
+    # Argo CD syncs, and running the workflow by hand is nicer than pushing an
+    # empty commit to trigger it. The branch check still applies.
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/final-project' &&
       vars.AWS_ROLE_ARN != ''
 

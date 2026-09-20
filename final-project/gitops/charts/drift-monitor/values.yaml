@@ -12,9 +12,10 @@ lokiUrl: http://loki.monitoring.svc.cluster.local:3100
 pushgatewayUrl: http://pushgateway.monitoring.svc.cluster.local:9091
 
 # --- the job -------------------------------------------------------------------
-# The CI pipeline builds one image per commit and tags it with the short git
-# sha. There is only one environment for this job, so the tag lives here
-# instead of in an envs/ file.
+# The CI pipeline builds one image per commit and tags it with the full 40
+# character commit sha. There is only one environment for this job, so the tag
+# lives here instead of in an envs/ file. The value below is a short sha from a
+# local build and is replaced during the first deployment.
 imageTag: 3c95938
 # Every 15 minutes. The window below is an hour, so runs overlap on purpose:
 # a short spike is seen four times instead of being missed once.

@@ -46,7 +46,7 @@ opencost:
   ui:
     enabled: false
 
-  # A server that lets an AI agent query the cost data. Nothing here uses it.
+  # An optional query server for external tools. Nothing here uses it.
   mcp:
     enabled: false
 

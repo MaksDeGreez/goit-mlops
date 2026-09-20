@@ -1,0 +1,27 @@
+# Grafana Alloy, wave 2.
+#
+# The log collector. It needs Loki from wave 1 to be there first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alloy
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.alloy.repoURL | quote }}
+      chart: {{ .Values.charts.alloy.name }}
+      targetRevision: {{ .Values.charts.alloy.version | quote }}
+      helm:
+        releaseName: alloy
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/alloy/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

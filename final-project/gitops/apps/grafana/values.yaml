@@ -1,0 +1,365 @@
+# Grafana: the one place a person looks at this platform.
+#
+# Everything is provisioned from Git: the data sources, the alert rules, the
+# contact point and the dashboards. Nothing is clicked together by hand, so a
+# fresh cluster looks exactly like the old one.
+#
+# Reach it with:
+#   kubectl -n monitoring port-forward svc/grafana 3000:80
+
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+# No volume. Dashboards come from ConfigMaps and everything else from the
+# files below, so there is nothing in Grafana worth keeping across a restart.
+persistence:
+  enabled: false
+
+admin:
+  # Terraform creates this secret with a random password.
+  existingSecret: grafana-admin
+  userKey: admin-user
+  passwordKey: admin-password
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+grafana.ini:
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+  news:
+    news_feed_enabled: false
+  users:
+    # Nobody signs up here; the admin account from the secret is the only one.
+    allow_sign_up: false
+
+# The uid of a data source is what a dashboard or an alert rule refers to. The
+# chart would generate a random one, and every dashboard JSON in this
+# repository would then point at nothing. These two names are fixed and used
+# everywhere.
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.monitoring.svc.cluster.local
+        isDefault: true
+        jsonData:
+          # Must match the scrape interval of Prometheus, or a "rate" over a
+          # short range can come out empty.
+          timeInterval: 30s
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+        jsonData:
+          maxLines: 1000
+
+# The dashboards are ConfigMaps with the label grafana_dashboard: "1", built
+# by kustomize from the JSON files in gitops/apps/grafana-dashboards. The
+# sidecar watches for them and drops them into the folder Grafana reads.
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    # Only this namespace. The dashboards live next to Grafana.
+    searchNamespace: monitoring
+    folder: /tmp/dashboards
+    provider:
+      # Dashboards belong to Git. Anything changed in the browser is thrown
+      # away on the next restart, which is the point.
+      allowUiUpdates: false
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# Alert rules, one contact point and the notification policy.
+#
+# These are Grafana-managed alerts: Grafana evaluates them itself and sends
+# them itself, so there is no Alertmanager to run. Provisioned rules cannot be
+# edited in the browser, which is what keeps them in step with this file.
+#
+# Every rule is the same chain of three steps:
+#   A  the PromQL query, as an instant query
+#   B  reduce A to its last value
+#   C  compare that value with the threshold  <- this is the condition
+alerting:
+  contactpoints.yaml:
+    apiVersion: 1
+    contactPoints:
+      - orgId: 1
+        name: platform-team
+        receivers:
+          - uid: platform-team-email
+            type: email
+            settings:
+              # PLACEHOLDER. example.com is the address range reserved for
+              # documentation, and no SMTP server is configured in
+              # grafana.ini, so nothing is really sent. A real project puts a
+              # team mailbox or a Slack webhook here; this project shows the
+              # alert in the Grafana UI instead.
+              addresses: mlops-alerts@example.com
+              singleEmail: true
+
+  policies.yaml:
+    apiVersion: 1
+    policies:
+      - orgId: 1
+        receiver: platform-team
+        group_by:
+          - alertname
+          - namespace
+        routes:
+          # Something is broken for users right now.
+          # The quotes around "=" matter: a bare = is a special character in
+          # YAML and some parsers read it as something else.
+          - receiver: platform-team
+            object_matchers:
+              - ["severity", "=", "critical"]
+            group_wait: 30s
+            group_interval: 2m
+            repeat_interval: 1h
+          # Worth looking at today, not tonight.
+          - receiver: platform-team
+            object_matchers:
+              - ["severity", "=", "warning"]
+            group_wait: 5m
+            group_interval: 10m
+            repeat_interval: 12h
+
+  rules.yaml:
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: inference
+        folder: MLOps
+        interval: 1m
+        rules:
+          - uid: inference-latency-p95
+            title: Inference p95 latency is too high
+            condition: C
+            for: 5m
+            # No traffic means no data, and that is not a problem.
+            noDataState: OK
+            execErrState: Error
+            annotations:
+              summary: 95% of production predictions take longer than 250 ms.
+              description: >-
+                The inference service answers in about 5 ms when it is healthy.
+                A p95 above 250 ms means the pods are short of CPU, or the node
+                is busy, or a new model version is much slower than the old one.
+                The metric counts every endpoint except the probes and the
+                metrics scrape, and almost all of that traffic is /predict.
+              runbook_url: https://github.com/MaksDeGreez/goit-mlops/blob/final-project/final-project/RUNBOOK.md#inference-latency
+            labels:
+              severity: warning
+              team: mlops
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 600
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  refId: A
+                  editorMode: code
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  expr: >-
+                    histogram_quantile(0.95, sum by (le) (
+                    rate(inference_request_duration_seconds_bucket{namespace="production"}[5m])))
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  refId: B
+                  type: reduce
+                  expression: A
+                  reducer: last
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  refId: C
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator:
+                        type: gt
+                        params: [0.25]
+
+          - uid: inference-error-rate
+            title: Inference is returning server errors
+            condition: C
+            for: 5m
+            noDataState: OK
+            execErrState: Error
+            annotations:
+              summary: More than 1% of production requests end in a 5xx answer.
+              description: >-
+                Refused input (400) and rate limiting (429) are counted
+                separately and do not trigger this rule, so a 5xx really means
+                the service itself failed. Check whether a canary rollout is
+                running and which model version the errors carry.
+              runbook_url: https://github.com/MaksDeGreez/goit-mlops/blob/final-project/final-project/RUNBOOK.md#inference-errors
+            labels:
+              severity: critical
+              team: mlops
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 600
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  refId: A
+                  editorMode: code
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  # clamp_min keeps the division from blowing up when there is
+                  # no traffic at all.
+                  expr: >-
+                    sum(rate(inference_requests_total{namespace="production", status_class="5xx"}[5m]))
+                    / clamp_min(sum(rate(inference_requests_total{namespace="production"}[5m])), 0.001)
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  refId: B
+                  type: reduce
+                  expression: A
+                  reducer: last
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  refId: C
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator:
+                        type: gt
+                        params: [0.01]
+
+      - orgId: 1
+        name: model-quality
+        folder: MLOps
+        interval: 5m
+        rules:
+          - uid: data-drift-share
+            title: The live data no longer looks like the training data
+            condition: C
+            for: 5m
+            noDataState: OK
+            execErrState: Error
+            annotations:
+              summary: More than a quarter of the features have drifted.
+              description: >-
+                The drift job compares the last hour of predictions with the
+                reference sample from the training split, using PSI. A share
+                above 0.25 means at least two of the eight features moved a
+                long way. Look at the per-column scores on the model quality
+                dashboard before retraining.
+              runbook_url: https://github.com/MaksDeGreez/goit-mlops/blob/final-project/final-project/RUNBOOK.md#data-drift
+            labels:
+              severity: warning
+              team: mlops
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 10800
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  refId: A
+                  editorMode: code
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  expr: max(data_drift_share)
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  refId: B
+                  type: reduce
+                  expression: A
+                  reducer: last
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  refId: C
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator:
+                        type: gt
+                        params: [0.25]
+
+          - uid: drift-job-stale
+            title: The drift job has not run for two hours
+            condition: C
+            for: 10m
+            # Here missing data IS the problem, but a brand new cluster has no
+            # metric yet either. Alerting on it would fire before the first
+            # run, so the rule only looks at the timestamp it can see.
+            noDataState: OK
+            execErrState: Error
+            annotations:
+              summary: No drift check finished in the last two hours.
+              description: >-
+                The CronJob runs every hour. Two hours without a result means
+                the job failed, could not reach Loki or the PushGateway, or is
+                not scheduled at all. Check the Jobs in the mlops-system
+                namespace.
+              runbook_url: https://github.com/MaksDeGreez/goit-mlops/blob/final-project/final-project/RUNBOOK.md#drift-job
+            labels:
+              severity: warning
+              team: mlops
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 10800
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  refId: A
+                  editorMode: code
+                  instant: true
+                  range: false
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  expr: time() - max(data_drift_last_run_timestamp_seconds)
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  refId: B
+                  type: reduce
+                  expression: A
+                  reducer: last
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  refId: C
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator:
+                        type: gt
+                        params: [7200]

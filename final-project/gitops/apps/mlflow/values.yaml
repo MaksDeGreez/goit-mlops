@@ -41,9 +41,10 @@ artifactRoot:
     # Pod Identity attaches to the service account below.
 
 serviceAccount:
-  # Terraform creates this service account and the Pod Identity association
-  # that lets it write to the artifact bucket.
-  create: false
+  # The chart creates the service account. Terraform only creates the Pod
+  # Identity association that gives this exact name access to the artifact
+  # bucket, so the name must stay "mlflow".
+  create: true
   name: mlflow
 
 service:

@@ -48,6 +48,8 @@ kubeconfig*.yaml
 *.key
 .env
 .env.*
+# note: the placeholder settings of the local stack ARE committed on purpose
+!.env.example
 
 # Submission archives at the repository root (the Lambda .zip files inside
 # lesson-10/terraform/lambda/ are tracked on purpose, so this is anchored to /)

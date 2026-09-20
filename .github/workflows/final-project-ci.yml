@@ -1,13 +1,19 @@
-# Checks for the final project: style, tests, images and secrets.
+# Checks for the final project: style, tests, infrastructure code, images and
+# secrets.
 #
 # | Job            | What it does                                            |
 # |----------------|---------------------------------------------------------|
 # | lint           | the same pre-commit hooks that run on the machine        |
-# | test           | the unit tests of each of the four services              |
-# | build-and-scan | builds each image and scans it with Trivy                |
-# | secret-scan    | a full gitleaks scan, not only of the staged changes     |
+# | test           | the unit tests of the four services and of the Lambdas  |
+# | terraform      | fmt, init -backend=false and validate, both stacks      |
+# | gitops         | renders every chart and checks it with kubeconform      |
+# | build-and-scan | builds each image and scans it with Trivy               |
+# | secret-scan    | a full gitleaks scan, not only of the staged changes    |
+# | push-images    | pushes the four images to ECR, only when AWS exists     |
 #
-# Nothing here needs AWS and nothing is pushed anywhere yet.
+# Only push-images touches AWS, and it is skipped until the repository variable
+# AWS_ROLE_ARN is set. Training is not started here: that is a separate
+# pipeline with its own trigger, .github/workflows/final-project-train.yml.
 name: final-project-ci
 
 on:
@@ -64,14 +70,26 @@ jobs:
         run: uv run --project final-project pre-commit run --all-files --show-diff-on-failure
 
   test:
-    name: Test ${{ matrix.service }}
+    name: Test ${{ matrix.name }}
     runs-on: ubuntu-24.04-arm
 
     strategy:
-      # One broken service should not hide the state of the other three.
+      # One broken component should not hide the state of the other four.
       fail-fast: false
       matrix:
-        service: [training, inference, registry-ops, drift-monitor]
+        # The Lambda handlers are not a service and do not live under
+        # services/, so the folder is written out instead of built from a name.
+        include:
+          - name: training
+            path: final-project/services/training
+          - name: inference
+            path: final-project/services/inference
+          - name: registry-ops
+            path: final-project/services/registry-ops
+          - name: drift-monitor
+            path: final-project/services/drift-monitor
+          - name: lambda
+            path: final-project/lambda
 
     steps:
       - name: Check out the repository
@@ -81,17 +99,95 @@ jobs:
         uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
-          cache-dependency-glob: "final-project/services/${{ matrix.service }}/uv.lock"
+          cache-dependency-glob: "${{ matrix.path }}/uv.lock"
 
       - name: Install the dependencies
         # --locked fails if the lock file does not match pyproject.toml, so the
         # versions in CI are exactly the ones that were tested locally.
-        working-directory: final-project/services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
         run: uv sync --locked
 
       - name: Run the tests
-        working-directory: final-project/services/${{ matrix.service }}
+        working-directory: ${{ matrix.path }}
         run: uv run pytest -q
+
+  terraform:
+    name: Check the Terraform code
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Format, init and validate both stacks
+        # The script runs "init -backend=false", so it never contacts the state
+        # bucket and needs no AWS credentials. It is the same script that is
+        # run on the machine.
+        run: final-project/scripts/validate_terraform.sh
+
+  gitops:
+    name: Render and check the GitOps manifests
+    runs-on: ubuntu-24.04-arm
+
+    env:
+      # Pinned versions and the SHA-256 of each arm64 release file. The
+      # checksums were taken from the release pages of the projects.
+      HELM_VERSION: "4.3.0"
+      HELM_SHA256: "31c5794dd55c66a51e6b7d2e2ac7a114ae8b1de41ff1d9ba51748ac973b06a08"
+      KUBECONFORM_VERSION: "0.8.0"
+      KUBECONFORM_SHA256: "1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87"
+      KUSTOMIZE_VERSION: "5.8.1"
+      KUSTOMIZE_SHA256: "0953ea3e476f66d6ddfcd911d750f5167b9365aa9491b2326398e289fef2c142"
+      YQ_VERSION: "4.53.6"
+      YQ_SHA256: "88a1016bc1d657375a35864e4f44b6f333df8ff97b559f51bba0adcb2169df09"
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install helm, kubeconform, kustomize and yq
+        # Release binaries instead of actions: the versions are pinned, the
+        # checksum of every download is verified, and there is no third party
+        # action in the chain.
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          cd "$tmp"
+
+          verify() {
+            echo "$2  $1" | sha256sum --check --status ||
+              { echo "checksum of $1 does not match"; exit 1; }
+          }
+
+          curl -fsSLo helm.tgz \
+            "https://get.helm.sh/helm-v${HELM_VERSION}-linux-arm64.tar.gz"
+          verify helm.tgz "$HELM_SHA256"
+          tar -xzf helm.tgz
+          sudo install -m 0755 linux-arm64/helm /usr/local/bin/helm
+
+          curl -fsSLo kubeconform.tgz \
+            "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-arm64.tar.gz"
+          verify kubeconform.tgz "$KUBECONFORM_SHA256"
+          tar -xzf kubeconform.tgz kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
+
+          curl -fsSLo kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_arm64.tar.gz"
+          verify kustomize.tgz "$KUSTOMIZE_SHA256"
+          tar -xzf kustomize.tgz kustomize
+          sudo install -m 0755 kustomize /usr/local/bin/kustomize
+
+          curl -fsSLo yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_arm64"
+          verify yq "$YQ_SHA256"
+          sudo install -m 0755 yq /usr/local/bin/yq
+
+      - name: Render every chart and validate it
+        run: final-project/scripts/validate_gitops.sh
 
   build-and-scan:
     name: Build and scan ${{ matrix.service }}
@@ -140,9 +236,93 @@ jobs:
             "$TRIVY" image --quiet --scanners vuln --ignore-unfixed \
             --severity CRITICAL --exit-code 1 --format table "$IMAGE"
 
-      # The image is not pushed anywhere yet. When ECR exists, the push goes
-      # here: log in with the OIDC role, tag the image with the commit sha and
-      # push it to the repository of this service.
+      # The push to ECR is a separate job, push-images. It is skipped until the
+      # AWS side exists, and this job has to stay green without it.
+
+  push-images:
+    name: Push the images to ECR
+    runs-on: ubuntu-24.04-arm
+    needs: [build-and-scan]
+
+    # Only on a real push to the project branch, and only once the AWS side
+    # exists. Before that the repository variable is empty and the whole job is
+    # skipped, so the pipeline stays green.
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/final-project' &&
+      vars.AWS_ROLE_ARN != ''
+
+    permissions:
+      # Needed to ask GitHub for the OIDC token that AWS trusts. No access key
+      # is stored anywhere.
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Assume the CI role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: final-project-push-images
+          # The registry host contains the account id and this repository is
+          # public, so the id is hidden from the log.
+          mask-aws-account-id: true
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the four images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # The registry host holds the account id. Mask it once more here, so
+          # that no command of this step can print it by accident.
+          echo "::add-mask::$REGISTRY"
+
+          echo "## Images pushed" >>"$GITHUB_STEP_SUMMARY"
+          echo >>"$GITHUB_STEP_SUMMARY"
+          echo "Tag \`$TAG\`. The registry host is left out on purpose: it" \
+            "contains the AWS account id and this repository is public." \
+            >>"$GITHUB_STEP_SUMMARY"
+          echo >>"$GITHUB_STEP_SUMMARY"
+          echo "| Repository | Result |" >>"$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >>"$GITHUB_STEP_SUMMARY"
+
+          cd final-project
+
+          for service in training inference registry-ops drift-monitor; do
+            repository="final-project/$service"
+
+            # ECR tags are immutable, so pushing a tag that is already there
+            # fails. That happens on every re-run of the same commit, which is
+            # normal and must not fail the pipeline.
+            if aws ecr describe-images \
+                 --repository-name "$repository" \
+                 --image-ids "imageTag=$TAG" \
+                 --output text >/dev/null 2>&1; then
+              echo "$repository:$TAG is already in the registry, skipping"
+              echo "| \`$repository\` | already there |" >>"$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            # The image is built again here instead of being carried over from
+            # build-and-scan. Same Dockerfile, same commit, same base image, so
+            # the result is the same, and an artifact upload plus download of
+            # four images would take longer than the rebuild.
+            docker build -f "services/$service/Dockerfile" \
+              -t "$REGISTRY/$repository:$TAG" .
+            docker push "$REGISTRY/$repository:$TAG"
+
+            echo "| \`$repository\` | pushed |" >>"$GITHUB_STEP_SUMMARY"
+          done
 
   secret-scan:
     name: Look for secrets

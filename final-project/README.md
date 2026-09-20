@@ -104,6 +104,40 @@ docker compose down -v     # removes them as well, for a clean start
 MLflow needs about 1.6 GB of memory with one worker, which is by far the largest part of the stack;
 the two API containers use about 165 MB each.
 
+### What a local run looks like
+
+The stack after `docker compose up -d --wait`:
+
+![the local stack is healthy](docs/screenshots/04-compose-stack-healthy.png)
+
+`./scripts/local_e2e.sh` trains two versions, promotes the first one, replaces it with the second
+one and then rolls back. Every change of the registry prints one JSON audit line, and the production
+API follows within a few seconds:
+
+![training, promotion and rollback](docs/screenshots/05-e2e-train-promote-rollback.png)
+
+Bad input is refused with 400, too many requests with 429, and a model whose file does not match the
+pinned checksum is never loaded, so the API stays "not ready":
+
+![validation, rate limit and checksum check](docs/screenshots/06-e2e-validation-ratelimit-checksum.png)
+
+The drift job finds no drift in normal traffic and finds three moved features in the second batch.
+The numbers end up in the PushGateway:
+
+![the drift check](docs/screenshots/07-e2e-drift.png)
+
+The model registry after the run. Version 1 is in production again, version 2 keeps the aliases
+`staging` and `previous-production`, and every version carries the Git commit, the dataset hash, the
+model checksum and the metrics as tags:
+
+![model versions with aliases and tags](docs/screenshots/08-mlflow-model-versions.png)
+
+![tags and stage of the production version](docs/screenshots/09-mlflow-version-tags.png)
+
+In this local run `git_sha` is `local`, because the images have no Git in them and the value comes
+from `.env`. CI and the cluster pass the real commit. Both versions have the same `model_sha256`
+because training is deterministic: the same data and the same parameters give the same file.
+
 ## Tests
 
 Every service has its own test suite and they all run without a network:
@@ -119,6 +153,8 @@ cd services/inference && uv sync --locked && uv run pytest
 | registry-ops | 29 | 15 s |
 | drift-monitor | 31 | 3 s |
 
+![the four test suites passing](docs/screenshots/03-tests-all-services.png)
+
 ## CI pipeline
 
 The pipeline is `.github/workflows/final-project-ci.yml`, in the root of the repository, because
@@ -133,6 +169,8 @@ development machine and the cluster, and it needs no AWS access.
 | `secret-scan` | a full gitleaks scan of `final-project/` and of the workflow files |
 
 The images are not pushed anywhere yet. That step is added together with the ECR repositories.
+
+![all CI jobs green](docs/screenshots/10-ci-all-jobs-green.png)
 
 `final-project/.gitlab-ci.yml` is the same pipeline written for GitLab, because the assignment asks
 for GitLab CI and this project is on GitHub. The `lint`, `test` and `secret-scan` jobs were really

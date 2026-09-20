@@ -243,6 +243,12 @@ It builds the four images and pushes them to ECR tagged with the **full 40
 character commit SHA**, and prints the result in the job summary without the
 registry host (the host contains the account id and this repository is public).
 
+GitHub only shows the **Run workflow** button for workflows that exist on the
+default branch. If the button is missing (the workflow only lives on another
+branch), open the last run of `final-project-ci` and press **Re-run all jobs**,
+or push any commit under `final-project/`: both start the same pipeline, now
+with the variable set.
+
 Copy that commit SHA. Step 4 needs it.
 
 ### Step 4 — point the charts at the images you just pushed
@@ -324,6 +330,12 @@ checked model never takes traffic. It is fixed by the next step.
 ### Step 7 — the first training run
 
 **Actions → final-project-train → Run workflow.** Leave every input empty.
+
+The same rule applies here: the button needs the workflow file on the default
+branch. Pick `final-project` in the branch list of the dialog, so the workflow
+and the code of that branch are used. Without the button, the same run can be
+started from a terminal with the command that `terraform output
+start_training_command` prints in `stacks/platform`.
 
 The workflow starts the state machine, which validates the input, runs a
 Kubernetes Job in `mlops-system` with the training image, waits for it, reads

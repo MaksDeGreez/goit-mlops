@@ -18,8 +18,6 @@ spec:
     repoURL: {{ .Values.repoURL | quote }}
     targetRevision: {{ .Values.targetRevision | quote }}
     path: {{ .Values.basePath }}/gitops/apps/postgres
-    directory:
-      recurse: false
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ .Values.namespaces.platform }}

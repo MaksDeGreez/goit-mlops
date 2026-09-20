@@ -685,10 +685,11 @@ Only `push-images` touches AWS, and it uses OIDC: no access key is stored
 anywhere. It skips an image whose tag is already in ECR, because ECR tags are
 immutable and a re-run of the same commit must not fail.
 
-![all CI jobs green](docs/screenshots/10-ci-all-jobs-green.png)
+![all CI jobs green](docs/screenshots/14-ci-terraform-gitops-green.png)
 
-> `TODO(after deploy): replace this screenshot with one that also shows the
-> terraform, gitops and push-images jobs green.`
+`push-images` is skipped in this run because the AWS side did not exist yet.
+
+> `TODO(after deploy): add a screenshot of a run where push-images is green.`
 
 ### The two validation scripts
 
@@ -706,6 +707,10 @@ is written down twice. It also checks that every Helm parameter an Application
 passes is really a key of the chart it passes it to. It ends with a table of
 127 resources across 16 components.
 
+![terraform checks](docs/screenshots/11-validate-terraform.png)
+
+![every rendered component checked](docs/screenshots/12-validate-gitops.png)
+
 ### GitLab
 
 `final-project/.gitlab-ci.yml` is the same pipeline written for GitLab, because
@@ -716,6 +721,8 @@ the assignment asks for GitLab CI and this project is on GitHub. The `lint`,
 ```bash
 gitlab-ci-local --file final-project/.gitlab-ci.yml gitops
 ```
+
+![the new jobs passing under gitlab-ci-local](docs/screenshots/13-gitlab-ci-local-new-jobs.png)
 
 `build-and-scan` needs the docker-in-docker service of a real runner, and
 `push-images` and `train` would need AWS to trust GitLab's OIDC provider as

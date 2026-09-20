@@ -45,8 +45,8 @@ registry tool and the drift job are in the profile `tools` and run once with `do
 
 ```bash
 cd final-project
-cp .env.example .env          # only placeholders, nothing secret
-docker compose build          # first time only, about 3 minutes
+cp .env.example .env                  # only placeholders, nothing secret
+docker compose --profile tools build  # first time only, about 4 minutes
 docker compose up -d --wait
 ```
 

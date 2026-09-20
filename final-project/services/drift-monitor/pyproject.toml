@@ -1,0 +1,26 @@
+[project]
+name = "drift-monitor"
+version = "0.1.0"
+description = "Batch job that checks the live features for data drift"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "evidently>=0.7.23,<0.8",
+    "pandas>=2.3,<3",
+    "prometheus-client>=0.26,<0.27",
+    "requests>=2.32,<3",
+]
+
+[tool.uv]
+# The job is run as "python -m drift_monitor", not installed as a package.
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+]
+
+[tool.pytest.ini_options]
+# Put the service folder on sys.path so "import drift_monitor" works without
+# installing the package.
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,83 @@
+# Values of the app-of-apps chart.
+#
+# Terraform installs this chart as the root Application and overwrites the
+# first block. Everything below that block is a fixed name that Terraform,
+# the services and the dashboards all agree on, so it is kept in Git.
+
+# --- injected by Terraform (platform stack) ---------------------------------
+
+# This repository. Every Application reads its values from it.
+repoURL: https://github.com/MaksDeGreez/goit-mlops.git
+targetRevision: final-project
+
+# Host part of the ECR registry, "<account-id>.dkr.ecr.<region>.amazonaws.com".
+# The real value contains the AWS account id, so it never goes into Git. The
+# placeholder below only makes "helm template" render something readable.
+imageRegistry: example.dkr.ecr.us-east-1.amazonaws.com
+
+awsRegion: us-east-1
+
+# S3 bucket for the MLflow artifacts. The name carries a random suffix, so the
+# real one is only known after Terraform created it.
+mlflowArtifactBucket: mlops-final-mlflow-artifacts-000000
+
+clusterName: mlops-final
+
+# --- fixed names ------------------------------------------------------------
+
+# Folder of this project inside the repository. All paths start with it.
+basePath: final-project
+
+# Where the child Application objects are created. Argo CD only looks at its
+# own namespace for them.
+argocdNamespace: argocd
+
+namespaces:
+  platform: mlops-system
+  monitoring: monitoring
+  staging: staging
+  production: production
+
+# In-cluster addresses. They are passed to the components that need them, so
+# the address is written down once instead of in five values files.
+addresses:
+  mlflow: http://mlflow.mlops-system.svc.cluster.local:5000
+  prometheus: http://prometheus-server.monitoring.svc.cluster.local
+  pushgateway: http://pushgateway.monitoring.svc.cluster.local:9091
+  loki: http://loki.monitoring.svc.cluster.local:3100
+
+# Helm repositories and pinned chart versions. Checked against the repositories
+# on 2026-09-21; every version below is the newest one that exists there.
+charts:
+  argoRollouts:
+    repoURL: https://argoproj.github.io/argo-helm
+    name: argo-rollouts
+    version: 2.43.2
+  mlflow:
+    repoURL: https://community-charts.github.io/helm-charts
+    name: mlflow
+    version: 1.11.7
+  prometheus:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    name: prometheus
+    version: 29.31.1
+  pushgateway:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    name: prometheus-pushgateway
+    version: 3.8.0
+  loki:
+    repoURL: https://grafana-community.github.io/helm-charts
+    name: loki
+    version: 18.13.4
+  alloy:
+    repoURL: https://grafana.github.io/helm-charts
+    name: alloy
+    version: 1.12.1
+  grafana:
+    repoURL: https://grafana-community.github.io/helm-charts
+    name: grafana
+    version: 13.2.5
+  opencost:
+    repoURL: https://opencost.github.io/opencost-helm-chart
+    name: opencost
+    version: 2.5.31

@@ -701,7 +701,9 @@ immutable and a re-run of the same commit must not fail.
 
 `push-images` is skipped in this run because the AWS side did not exist yet.
 
-> `TODO(after deploy): add a screenshot of a run where push-images is green.`
+With `FINAL_AWS_ROLE_ARN` set, the last job pushes the four images to ECR through OIDC:
+
+![push-images green with the pushed tag](docs/screenshots/15-ci-push-images-green.png)
 
 ### The two validation scripts
 

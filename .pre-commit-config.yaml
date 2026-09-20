@@ -5,8 +5,9 @@
 # must not change, so the "files" pattern below keeps every hook inside
 # final-project/ and the few shared files that belong to it.
 #
-# Install the hook once:  cd final-project && uv run pre-commit install
-# Run everything by hand: cd final-project && uv run pre-commit run --all-files
+# Run from the root of the repository (after "uv sync" in final-project/):
+#   uv run --project final-project pre-commit install
+#   uv run --project final-project pre-commit run --all-files
 
 files: |
   (?x)^(

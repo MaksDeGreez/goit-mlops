@@ -1,0 +1,24 @@
+# Rules for the YAML files of the final project.
+#
+# The relaxed preset is the base. Only the rules that matter for this project
+# are changed, so the checks stay useful without being noisy.
+extends: relaxed
+
+rules:
+  # Long lines are common in Helm values and in workflow files. Report them,
+  # but do not fail the build.
+  line-length:
+    max: 120
+    level: warning
+
+  # "---" at the top of a file is optional here.
+  document-start: disable
+
+  # GitHub Actions uses the key "on:", which YAML reads as a boolean.
+  truthy:
+    allowed-values: ["true", "false", "on", "off"]
+    level: warning
+
+# Helm templates are Go templates, not valid YAML.
+ignore: |
+  **/templates/

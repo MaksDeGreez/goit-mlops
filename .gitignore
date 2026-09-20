@@ -18,6 +18,11 @@ override.tf.json
 !*.example.tfvars
 # note: .terraform.lock.hcl IS committed on purpose (provider version pinning)
 
+# Lambda deployment packages of the final project. Terraform builds them from
+# final-project/lambda/ with archive_file, so the .zip files are output and not
+# source. (The lesson-10 .zip files are tracked on purpose and stay tracked.)
+final-project/terraform/modules/training-pipeline/build/
+
 # Python
 .venv/
 venv/

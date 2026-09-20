@@ -1,0 +1,110 @@
+# Prometheus.
+#
+# The plain chart, not kube-prometheus-stack: it is much smaller, installs no
+# operator and no CustomResourceDefinitions, and everything this project needs
+# is already in it. Grafana reads from it, Argo Rollouts asks it whether a
+# canary is healthy, and OpenCost needs it to work at all.
+#
+# The service ends up as prometheus-server.monitoring.svc.cluster.local:80.
+
+# The sidecar that reloads Prometheus when the config map changed. It asks for
+# nothing by default, which makes the pod "BestEffort" for that container.
+configmapReload:
+  prometheus:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+
+server:
+  persistentVolume:
+    enabled: true
+    size: 8Gi
+    # No storageClass: the EBS CSI add-on makes gp3 the default class, and the
+    # chart then leaves the field out, which is what picks the default.
+
+  # A week. Long enough to look at a rollout or a drift run from a few days
+  # ago, short enough to fit in 8 GiB together with cAdvisor metrics.
+  retention: 7d
+
+  global:
+    scrape_interval: 30s
+    evaluation_interval: 30s
+
+  service:
+    type: ClusterIP
+    servicePort: 80
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 768Mi
+    limits:
+      memory: 1536Mi
+
+# Alertmanager is not used. The alert rules of this project live in Grafana,
+# which sends them itself, so a second alerting system would only be one more
+# thing to keep running.
+alertmanager:
+  enabled: false
+
+# PushGateway has its own Application, so that its Service can be called
+# "pushgateway" and nothing else.
+prometheus-pushgateway:
+  enabled: false
+
+# Where the numbers about the cluster itself come from: kube-state-metrics
+# knows about Deployments, Rollouts and pods, node-exporter about the nodes.
+# The cost dashboard needs both.
+kube-state-metrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 192Mi
+
+prometheus-node-exporter:
+  enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+scrapeConfigs:
+  # The built-in job finds PushGateway by a Service annotation that only the
+  # bundled sub-chart sets. PushGateway is a separate Application here, so the
+  # job is switched off and replaced by the static one below.
+  prometheus-pushgateway:
+    enabled: false
+  # This job probes Services through a blackbox exporter. There is none in
+  # this cluster, so it would only produce failing targets.
+  kubernetes-services:
+    enabled: false
+
+extraScrapeConfigs: |
+  - job_name: pushgateway
+    # Without honor_labels Prometheus overwrites the labels that came with the
+    # pushed metrics with its own job and instance labels, and the column name
+    # of every drift score would be lost.
+    honor_labels: true
+    static_configs:
+      - targets:
+          - pushgateway.monitoring.svc.cluster.local:9091
+
+  - job_name: opencost
+    honor_labels: true
+    scrape_interval: 1m
+    static_configs:
+      - targets:
+          - opencost.monitoring.svc.cluster.local:9003
+
+  - job_name: argo-rollouts
+    static_configs:
+      - targets:
+          - argo-rollouts-metrics.mlops-system.svc.cluster.local:8090

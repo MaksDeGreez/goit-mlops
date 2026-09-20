@@ -1,0 +1,28 @@
+# PushGateway, wave 1.
+#
+# In the same wave as Prometheus because the two do not depend on each other:
+# Prometheus simply starts scraping the address as soon as it answers.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pushgateway
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.pushgateway.repoURL | quote }}
+      chart: {{ .Values.charts.pushgateway.name }}
+      targetRevision: {{ .Values.charts.pushgateway.version | quote }}
+      helm:
+        releaseName: pushgateway
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/pushgateway/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

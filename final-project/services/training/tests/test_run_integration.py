@@ -103,7 +103,9 @@ def client(tracking_uri: str) -> MlflowClient:
 def first_result(tracking_uri: str) -> dict:
     finished = run_job(tracking_uri)
     assert finished.returncode == 0, finished.stderr
-    return json.loads(finished.stdout.strip().splitlines()[-1])
+    # Nothing but the result on stdout: a Lambda function parses it.
+    assert len(finished.stdout.strip().splitlines()) == 1, finished.stdout
+    return json.loads(finished.stdout.strip())
 
 
 @pytest.fixture(scope="module")

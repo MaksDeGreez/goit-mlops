@@ -220,7 +220,7 @@ repository, because GitHub only reads workflows from there:
 | Helm | 3 or 4 | checking charts before Argo CD syncs them |
 | Docker | any recent | building the service images and the local stack |
 | uv | 0.8 or newer | Python 3.13 and the Python tools |
-| `kubectl-argo-rollouts` | 1.10 | watching and aborting a canary — optional, `kubectl` works too |
+| `kubectl-argo-rollouts` | 1.10 | watching a canary and aborting one by hand. The runbook uses it; plain `kubectl` can show the state of a Rollout but cannot abort it. |
 | kubeconform, kustomize, yq | 0.8 / 5.8 / 4.53 | only for `scripts/validate_gitops.sh` |
 
 An AWS account with administrator rights, and a profile named `goit`
@@ -235,7 +235,9 @@ brew install argoproj/tap/kubectl-argo-rollouts
 
 ## Deploy from zero
 
-Nine steps. Nothing happens outside this list.
+Ten steps, numbered 0 to 9. Nothing happens outside this list. Paths without a
+leading `/` are relative to `final-project/`, and every block says where to
+`cd` when it is somewhere else.
 
 ### Step 0 — prerequisites and the state bucket
 
@@ -347,13 +349,21 @@ git push
 ```
 
 This push starts CI again and pushes a second set of images under the new
-commit SHA. That is harmless — the tags in the files still name the images from
+commit SHA. That is harmless: the tags in the files still name the images from
 step 3, which exist.
+
+> **Change `registryOpsImageTag` together with something else.** That key is
+> only read by the `PostSync` hook Job, and a hook Job is not part of the
+> desired state Argo CD compares against the cluster. On its own it therefore
+> leaves the Application `Synced`, no sync runs, and the hook keeps using the
+> old image until the next real change. Here it is changed in the same commit
+> as `imageTag`, so there is nothing to do. If it ever has to change alone,
+> press **Sync** on `inference-production` in the Argo CD UI.
 
 ### Step 5 — the platform stack
 
 ```bash
-cd ../platform
+cd final-project/terraform/stacks/platform
 terraform init
 terraform apply
 ```
@@ -478,6 +488,8 @@ and the stage `Production` and prints one JSON audit line. That Job took 9
 seconds.
 
 ### Step 9 — verify
+
+Back in `final-project/`:
 
 ```bash
 # every Application Synced and Healthy
@@ -1066,26 +1078,54 @@ would ask for 1.3 CPU — a third of the cluster — for pods that answer in abo
 ## Teardown
 
 **The order matters.** Argo CD created the volumes, not Terraform, so Terraform
-cannot delete them; and if Argo CD is removed first, nothing is left to process
-the finalizers on its Applications and the namespace hangs in `Terminating`
-for ever.
+cannot delete them. And if Argo CD is removed first, nothing is left to process
+the finalizers on its Applications, so the namespace hangs in `Terminating` for
+ever.
+
+There is one trap in the middle. Deleting the root Application does remove
+every child Application and every workload, but it does **not** remove the two
+volume claims that a StatefulSet created for itself: `data-postgres-0` in
+`mlops-system` and `storage-loki-0` in `monitoring`. Argo CD never created
+those two objects, so it does not prune them, and each one holds an EBS volume
+that keeps costing money after the cluster is gone. Delete them by hand.
 
 ```bash
-# 1. Delete the root Application. The finalizer makes this remove every child
-#    Application, every workload and every PVC, which releases the EBS volumes.
+# 1. Delete the root Application. Its finalizer removes every child
+#    Application and every workload with it.
 kubectl -n argocd delete application mlops-platform
-kubectl get pvc -A          # wait until this is empty
 
-# 2. The platform stack.
+# 2. Wait until no Application is left. Two or three minutes.
+kubectl -n argocd get applications
+
+# 3. Delete the two volume claims the StatefulSets made. Argo CD does not.
+kubectl delete pvc --all -n mlops-system
+kubectl delete pvc --all -n monitoring
+
+# 4. Wait until the EBS volumes are really gone. This must print nothing.
+kubectl get pv
+
+# 5. The platform stack.
 cd final-project/terraform/stacks/platform && terraform destroy
 
-# 3. The infra stack, last: it deletes the cluster the platform stack used.
+# 6. The infra stack, last: it deletes the cluster the platform stack used.
 cd ../infra && terraform destroy
 ```
 
-Then check that nothing is left — a resource created from inside the cluster is
-in no Terraform state. The exact commands, and what to do when a namespace
-still hangs, are in [`RUNBOOK.md`](RUNBOOK.md#teardown).
+Then check that nothing is left, because a resource created from inside the
+cluster is in no Terraform state:
+
+```bash
+export AWS_PROFILE=goit
+aws eks list-clusters --region us-east-1
+aws ec2 describe-volumes --region us-east-1 --query 'Volumes[].VolumeId'
+aws ec2 describe-nat-gateways --region us-east-1 \
+  --filter Name=state,Values=available --query 'NatGateways[].NatGatewayId'
+aws elbv2 describe-load-balancers --region us-east-1 \
+  --query 'LoadBalancers[].LoadBalancerArn'
+```
+
+All four should come back empty. What to do when a namespace still hangs is in
+[`RUNBOOK.md`](RUNBOOK.md#teardown).
 
 The Terraform state bucket is kept on purpose and is not managed by Terraform.
 

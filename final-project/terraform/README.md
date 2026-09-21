@@ -59,26 +59,50 @@ the platform appears over the next few minutes.
 creates. If the controller is removed first, nothing is left to process those
 finalizers and the namespace hangs in `Terminating` for ever.
 
-```bash
-# 1. Delete the root Application and wait. This removes every child
-#    Application, every workload and every PVC, so the EBS volumes go away.
-kubectl -n argocd delete application mlops-platform
-kubectl get pvc -A                      # wait until this is empty
+Deleting the root Application removes every child Application and every
+workload, but **not** the two volume claims the StatefulSets made for
+themselves: `data-postgres-0` in `mlops-system` and `storage-loki-0` in
+`monitoring`. Argo CD did not create them, so it does not prune them, and each
+one holds an EBS volume that keeps costing money. Delete them by hand.
 
-# 2. The platform stack.
+```bash
+# 1. Delete the root Application. Its finalizer removes every child
+#    Application and every workload with it.
+kubectl -n argocd delete application mlops-platform
+
+# 2. Wait until no Application is left. Two or three minutes.
+kubectl -n argocd get applications
+
+# 3. Delete the two StatefulSet volume claims. Argo CD does not.
+kubectl delete pvc --all -n mlops-system
+kubectl delete pvc --all -n monitoring
+
+# 4. Wait until the volumes are released. This must print nothing.
+kubectl get pv
+
+# 5. The platform stack.
 cd stacks/platform
 terraform destroy
 
-# 3. The infra stack. Do this one last: it deletes the cluster the platform
+# 6. The infra stack. Do this one last: it deletes the cluster the platform
 #    stack was talking to.
 cd ../infra
 terraform destroy
 ```
 
-Afterwards check that nothing is left: EKS clusters, NAT gateways, EBS volumes,
-Elastic IPs, load balancers. A load balancer or a volume created inside the
-cluster is not in the Terraform state, so a destroy does not remove it, which
-is the reason step 1 comes first.
+Afterwards check that nothing is left. A load balancer or a volume created
+inside the cluster is not in the Terraform state, so a destroy does not remove
+it, which is the reason steps 1 to 4 come first.
+
+```bash
+export AWS_PROFILE=goit
+aws eks list-clusters --region us-east-1
+aws ec2 describe-volumes --region us-east-1 --query 'Volumes[].VolumeId'
+aws ec2 describe-nat-gateways --region us-east-1 \
+  --filter Name=state,Values=available --query 'NatGateways[].NatGatewayId'
+aws elbv2 describe-load-balancers --region us-east-1 \
+  --query 'LoadBalancers[].LoadBalancerArn'
+```
 
 If a namespace still hangs after all that, an Application finalizer is the
 cause:

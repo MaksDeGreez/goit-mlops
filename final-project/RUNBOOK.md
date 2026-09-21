@@ -700,6 +700,7 @@ kubectl -n argocd logs statefulset/argocd-application-controller --tail=100
 
 | Symptom | Do this |
 |---|---|
+| A commit that changes **only** `registryOpsImageTag` does nothing | That key is read by the `PostSync` hook Job only, and a hook Job is not part of the desired state Argo CD compares. The Application stays `Synced`, so no sync runs and the hook keeps the old image. Press **Sync** on `inference-production` in the UI, or change it together with something else, such as `imageTag`. |
 | `ComparisonError` about rendering | Reproduce it locally: `scripts/validate_gitops.sh`. It renders every chart with the same values Argo CD uses. |
 | Stuck on a CustomResourceDefinition that is "too long" | The `argo-rollouts` Application syncs with `ServerSideApply=true` for exactly this reason. If a new chart hits it, add the same sync option in `gitops/bootstrap/templates/`. |
 | Healthy children, `Progressing` parent | The parent waits for the children because of the `Application` health customisation in `terraform/modules/argocd/values/argocd-values.yaml`. Look for the child that is not healthy yet. |
@@ -787,21 +788,35 @@ $0.28 per hour, roughly $6.70 a day, and there is no free tier on this account.
 cannot delete them. And if Argo CD is removed first, nothing is left to process
 the finalizers on its Applications.
 
+**The two volume claims Argo CD will not delete.** Deleting the root
+Application removes every child Application and every workload, but two
+PersistentVolumeClaims survive it: `data-postgres-0` in `mlops-system` and
+`storage-loki-0` in `monitoring`. They were created by the StatefulSet
+controller from a `volumeClaimTemplate`, not by Argo CD, so Argo CD does not
+prune them. Each one holds an EBS volume that goes on costing money after the
+cluster is destroyed. Delete them by hand, before the platform stack.
+
 ```bash
-# 1. Delete the root Application. The finalizer makes this delete every child
-#    Application, every workload and every PVC, which releases the EBS volumes.
+# 1. Delete the root Application. Its finalizer removes every child
+#    Application and every workload with it.
 kubectl -n argocd delete application mlops-platform
 
-# 2. Wait until no volume is left. This usually takes two or three minutes.
-kubectl get pvc -A
+# 2. Wait until no Application is left. Two or three minutes.
+kubectl -n argocd get applications
+
+# 3. Delete the two StatefulSet volume claims. Argo CD does not.
+kubectl delete pvc --all -n mlops-system
+kubectl delete pvc --all -n monitoring
+
+# 4. Wait until the EBS volumes are released. This must print nothing.
 kubectl get pv
 
-# 3. The platform stack: Argo CD, the secrets, MLflow's bucket, the training
+# 5. The platform stack: Argo CD, the secrets, MLflow's bucket, the training
 #    pipeline, the namespaces.
 cd terraform/stacks/platform
 terraform destroy
 
-# 4. The infra stack, last: it deletes the cluster the platform stack used.
+# 6. The infra stack, last: it deletes the cluster the platform stack used.
 cd ../infra
 terraform destroy
 ```
@@ -828,5 +843,5 @@ All of these should come back empty.
 delete the state it holds. It costs a few cents a month. See
 [`scripts/create_state_bucket.sh`](scripts/create_state_bucket.sh).
 
-**If step 3 or 4 fails**, the cause is almost always the finalizer deadlock:
+**If step 5 or 6 fails**, the cause is almost always the finalizer deadlock:
 see [Argo CD app stuck](#argocd-app-stuck).

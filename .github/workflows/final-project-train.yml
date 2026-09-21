@@ -20,19 +20,19 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Tag of the training image in ECR. Empty means this commit."
+        description: "image_tag: tag of the training image in ECR. Empty means this commit."
         required: false
         default: ""
       experiment_name:
-        description: "MLflow experiment. Empty means the default of the job."
+        description: "experiment_name: MLflow experiment. Empty means the default of the job."
         required: false
         default: ""
       sample_rows:
-        description: "Train on this many rows only. Empty means the whole file."
+        description: "sample_rows: train on this many rows only. Empty means the whole file."
         required: false
         default: ""
       max_iter:
-        description: "Boosting iterations. Empty means the default of the job."
+        description: "max_iter: boosting iterations. Empty means the default, 200."
         required: false
         default: ""
 

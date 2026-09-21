@@ -75,11 +75,17 @@ no stack trace, no echo of the input. `slowapi` limits `/predict` to
 `/metrics`, `/health/*` and `/info` are exempt. Requests and rate limiting are
 counted in Prometheus and a Grafana rule fires on more than 1 % of 5xx.
 
+Both were tested against the running cluster: 20 requests with a missing field
+gave 20 × 400 with the field name and nothing else, and a burst of 3000
+requests gave 2976 × 200 and 24 × 429.
+
 **Residual risk, stated honestly.** The rate limit is per pod and lives in the
 memory of that pod. With 10 replicas behind one Service the effective limit is
-ten times the configured one, and a restart forgets everything. A real
-deployment would put the limit in a shared store or in front of the service.
-The endpoint is not public here, which is what keeps this acceptable.
+ten times the configured one — **about 200 requests a second in total**, which
+is what the burst above shows: most of it got through. A restart forgets
+everything. A real deployment would put the limit in a shared store or in front
+of the service. The endpoint is not public here, which is what keeps this
+acceptable.
 
 ### 3. Leaked credentials
 
@@ -110,16 +116,21 @@ that is live.
 
 **Controls.** Only `registry-ops` changes the registry, and every state change
 prints exactly one JSON line `event=model_registry_audit` with the action, the
-version, both stages, the actor and the Git commit
-(`services/registry-ops/registry_ops/audit.py`). Alloy ships that line to Loki,
-where it stays searchable and is shown on the model quality dashboard. The
+version, both stages, the actor, the Git commit and a `level`
+(`services/registry-ops/registry_ops/audit.py`). The `level` is there because
+Loki otherwise guesses one from the key name `"error": null` and files a
+successful promotion under "error". Alloy ships that line to Loki, where it
+stays searchable and is shown on the model quality dashboard. Promote, archive,
+rollback and `no_change` lines were all read back out of Loki after the real
+promotions. The
 normal path is not a command at all: production changes because a commit
 changed `modelVersion`, and a `PostSync` hook Job then makes the registry
 agree, with `ACTOR=argocd` and `GIT_SHA` set to the commit Argo CD synced.
 `delete` refuses to remove the version that is currently in production. In the
 cluster, `mlops-engineers` have full rights in `staging` but read-only in
 `production`; the only write they keep there is `patch` on `rollouts/status`,
-which aborts a canary and cannot change what is deployed.
+which aborts a canary and cannot change what is deployed. `scripts/check_rbac.sh`
+asks the live cluster 32 of these questions and all 32 answered as written down.
 
 **Residual risk.** Anyone with the MLflow UI open through a port-forward can
 change an alias by hand. It would be logged by MLflow but not as an audit line,

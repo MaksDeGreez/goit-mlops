@@ -48,6 +48,25 @@ Grafana's notification policy groups by `alertname` and `namespace`. Critical
 alerts wait 30 seconds before the first message and repeat every hour; warnings
 wait 5 minutes and repeat every 12 hours. That is also in the values file.
 
+## What the on-call person actually sees
+
+One of the four rules has fired for real, which is the best way to describe the
+experience. After 6000 drifted requests, *The live data no longer looks like
+the training data* went from `Normal` to `Firing`
+([demo trace](demo-trace.md#9-drift-and-the-alert-that-fired)).
+
+Under **Alerting → Alert rules** the rule turns red with `1 instance`. Opening
+it shows, on one page: the query `max(data_drift_share)`, the graph of that
+value over the last three hours, the reduced number (0.375) next to the
+threshold (0.25), the pending period (5 minutes), the labels
+`severity=warning` and `team=mlops`, and the **Runbook URL** link. That link is
+the first click: it opens [`../RUNBOOK.md#data-drift`](../RUNBOOK.md#data-drift),
+which says which panel to read next and what each reading means.
+
+So even with no contact point that delivers anything, the path from "something
+is wrong" to "here is what to do" is two clicks. When the drifted traffic
+stopped, the rule went back to `Normal` on its own.
+
 ## Who escalates to whom, and when
 
 **Inference errors (critical).**
@@ -83,6 +102,12 @@ critical path is whatever else is broken.
   itself, and the old version is serving. It shows up as a `Degraded`
   Application in Argo CD and is picked up in normal working hours. Paging
   somebody because the safety net worked is how people learn to ignore pages.
+  Worth knowing: a canary bad enough to be aborted can still push the error
+  rate over 1 % for a minute or two and set off the critical rule — measured
+  2.08 % during the demo abort. The runbook's first question under
+  [error rate](../RUNBOOK.md#inference-errors) is therefore "is a canary
+  running", and the answer "yes, and it already aborted itself" closes the
+  incident.
 - **A failed training run.** The GitHub Actions job fails and shows the reason
   in its summary. Nobody is waiting on it at 3 a.m.
 - **A single pod restart.** Kubernetes handles it. Repeated restarts show up as

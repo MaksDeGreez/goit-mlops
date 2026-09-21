@@ -115,8 +115,9 @@ A 500 says nothing at all. The traceback goes to the log, where only the team ca
 
 1. ask the registry which version the alias points at, or take the pinned one;
 2. download that version through the tracking server;
-3. read `flavors.sklearn.pickled_model` from the `MLmodel` file, hash that file and compare it with
-   the tag `model_sha256` written by the training job, and with `MODEL_SHA256` when it is set;
+3. read `flavors.sklearn.pickled_model` from the `MLmodel` file and hash that file. Compare the
+   hash with the tag `model_sha256` written by the training job, and with `MODEL_SHA256` when it is
+   set;
 4. only now deserialize the file and answer requests with it.
 
 Step 4 runs code, because an MLflow scikit-learn model is a pickle. That is the reason for the

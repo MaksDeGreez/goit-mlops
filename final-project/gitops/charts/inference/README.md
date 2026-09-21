@@ -18,12 +18,11 @@ What it creates:
 ## Why canary
 
 The service answers one small HTTP request, and a bad model version shows up in the error rate
-within a minute. A canary can therefore try the new version on a tenth of the traffic, look at the
-error rate, and go back on its own. Blue-green would need a second full copy of ten pods on a two
-node cluster, and A/B testing would need a traffic router to split by header. Neither buys anything
-here.
+within a minute. So a canary can try the new version on a tenth of the traffic, look at the error
+rate, and go back on its own. Blue-green would need a second full copy of ten pods on a two node
+cluster. A/B testing would need a traffic router to split by header. Neither would help here.
 
-There is no traffic router in this cluster, so the split is done with replicas: one Service sends
+There is no traffic router in this cluster, so the split is done with replicas. One Service sends
 requests to every ready pod, and the new version gets the share of the pods it has. With ten pods
 the first step is one pod, which is the 10 % the assignment asks for.
 
@@ -81,14 +80,14 @@ git commit -am "Promote model version 4 to production"
 git push
 ```
 
-ArgoCD sees the commit and syncs. Because both the environment variable and the pod label change,
-the Rollout starts a new revision and runs the canary: 1 pod, wait, 5 pods, wait, all 10. When it is
-done the PostSync hook runs `registry_ops sync --production-version 4`, which sets the MLflow alias
-`production` and the stage `Production` on version 4 and archives version 3.
+ArgoCD sees the commit and syncs. Both the environment variable and the pod label change, so the
+Rollout starts a new revision and runs the canary: 1 pod, wait, 5 pods, wait, all 10. When it is
+done the PostSync hook runs `registry_ops sync --production-version 4`. That sets the MLflow alias
+`production` and the stage `Production` on version 4, and archives version 3.
 
-Measured on the cluster: **about five minutes** from the push to a healthy Rollout, with nine
+Measured on the cluster: about five minutes from the push to a healthy Rollout, with nine
 successful background measurements, and about ten seconds for the hook Job. Send traffic while the
-canary runs - see the note under "The automatic rollback" below.
+canary runs. See the note under "The automatic rollback" below.
 
 ## A rollback is one command
 
@@ -98,7 +97,7 @@ git push
 ```
 
 The file is back to the older version, and everything else follows: the same canary in the other
-direction and a hook that moves the registry back. The old version is still there, still tagged, and
+direction, and a hook that moves the registry back. The old version is still there and still tagged.
 `previous-production` points at the one that just left.
 
 ## The automatic rollback, and how to show it
@@ -114,11 +113,11 @@ The analysis asks Prometheus one question every 30 seconds:
 Only the new version is measured, because every metric of the service carries `model_version`. 4xx
 is left out: a refused input or a rate limited client is not a broken release.
 
-The measurement counts as good when the share is at most `analysisErrorRateMax`, **and also** when
-there is no data at all (`len(result) == 0`) or the version served nothing in the window
-(`isNaN(result[0])`). Missing data is not evidence of a bad version, and a rollout that nobody sends
+The measurement counts as good when the share is at most `analysisErrorRateMax`. It also counts as
+good when there is no data at all (`len(result) == 0`), or when the version served nothing in the
+window (`isNaN(result[0])`). Missing data is not proof of a bad version. A rollout that nobody sends
 traffic to must not be rolled back for being quiet. `analysisFailureLimit: 2` means the third bad
-measurement in a row aborts the canary; one odd scrape is not enough.
+measurement in a row aborts the canary. One odd scrape is not enough.
 
 To show it without training a broken model, set the fault switch together with a new version:
 
@@ -127,27 +126,27 @@ modelVersion: "5"
 faultRate: 0.5
 ```
 
-The one canary pod then fails that share of its `/predict` calls, and after three failed
-measurements Argo Rollouts scales the canary back to zero by itself. The Application turns
-`Degraded`, the PostSync hook never runs, and MLflow still says version 4 is the production one —
-which is true, because version 4 is what the pods went back to.
+The one canary pod then fails that share of its `/predict` calls. After three failed measurements
+Argo Rollouts scales the canary back to zero by itself. The Application turns `Degraded` and the
+PostSync hook never runs. MLflow still says version 4 is the production one, which is correct:
+version 4 is what the pods went back to.
 
 **Send traffic while it runs**, from inside the cluster
 (`scripts/cluster_traffic.sh production --mode normal --count 3000 --rate 10`). With no traffic the
-analysis measures nothing, counts that as success, and the demo proves the opposite of what it
-should. A `kubectl port-forward` is not enough either: it connects to one pod.
+analysis measures nothing and counts that as success, so the demo would show the opposite of what
+it should. A `kubectl port-forward` is not enough either: it connects to one pod.
 
 This was really run. `faultRate: 0.5` gave measurements of 0.548, 0.583 and 0.572 against the limit
-of 0.05, and the rollout stopped itself about two minutes after the push with:
+of 0.05. The rollout stopped itself about two minutes after the push with:
 
 ```
 RolloutAborted: Rollout aborted update to revision 5: Background analysis phase error/failed:
 Metric "error-rate" assessed Failed due to failed (3) > failureLimit (2)
 ```
 
-Only one pod of eleven served the broken version, so the whole service showed at most 2.08 % of 5xx,
+Only one pod of eleven served the broken version. The whole service showed at most 2.08 % of 5xx,
 for about two minutes. `faultRate: 1` works as well and is faster to explain, but 0.5 is closer to
-what a real bad release looks like.
+a real bad release.
 
 ```bash
 kubectl argo rollouts get rollout inference -n production --watch
@@ -156,10 +155,10 @@ kubectl -n production describe analysisrun <name>   # every measurement with its
 ```
 
 After an abort, ArgoCD retries the failed sync for five to eight minutes before it picks up the
-`git revert`. That is normal; the old version serves the whole time. `Terminate` on the running
+`git revert`. That is normal. The old version serves the whole time. `Terminate` on the running
 operation in the ArgoCD UI skips the wait.
 
-A version that never becomes ready is caught by a second net. A wrong checksum keeps
+A version that never becomes ready is caught by a second check. A wrong checksum keeps
 `/health/ready` at 503 for ever, so no request is served and the analysis would see nothing at all.
 `progressDeadlineSeconds: 600` with `progressDeadlineAbort: true` ends that rollout as well.
 
@@ -168,13 +167,13 @@ A version that never becomes ready is caught by a second net. A wrong checksum k
 * **Argo Rollouts** is installed in the cluster (component `argo-rollouts`, sync wave 0), so the
   `Rollout` and `AnalysisTemplate` kinds exist.
 * **Prometheus** scrapes pods by annotation and adds a `namespace` label. The `kubernetes-pods` job
-  of the Prometheus chart does that out of the box. Check the query above in the Prometheus UI once
-  after the first deployment: an empty answer is treated as "fine", so a broken scrape config would
-  make the analysis pass without looking at anything. On this cluster
+  of the Prometheus chart does that with no extra setting. Check the query above in the Prometheus
+  UI once after the first deployment. An empty answer is treated as "fine", so a broken scrape
+  config would make the analysis pass without looking at anything. On this cluster
   `inference_requests_total` and `inference_model_info` were there with a `namespace` label as soon
   as the pods were ready.
-* A scrape interval of 30 s or less. The default of the chart is one minute, which still works with
-  the two minute window but makes the analysis slower to react. This project sets
+* A scrape interval of 30 s or less. The default of the chart is one minute. That still works with
+  the two minute window, but it makes the analysis slower to react. This project sets
   `scrape_interval: 30s` in `gitops/apps/prometheus/values.yaml`.
 * The **ArgoCD Application** passes `imageRegistry`, `mlflowTrackingUri`, `prometheusAddress` and
   `gitSha`. `gitSha` should be set to `$ARGOCD_APP_REVISION`, which ArgoCD replaces with the commit
@@ -182,8 +181,8 @@ A version that never becomes ready is caught by a second net. A wrong checksum k
 * Namespaces are created by Terraform, so the Applications use `CreateNamespace=false`.
 
 There is no NetworkPolicy in this chart. The cluster runs the VPC CNI without its network policy
-support switched on, so a NetworkPolicy would be a document that changes nothing, and a document
-that looks like a control is worse than none.
+support switched on, so a NetworkPolicy would change nothing. A rule that looks like a control but
+does nothing is worse than no rule at all.
 
 ## The first deployment
 
@@ -192,17 +191,17 @@ three things follow:
 
 * the registry hook is not rendered at all, so nothing claims a production version that does not
   exist;
-* the analysis is not rendered either — it can only ask about a version by name;
+* the analysis is not rendered either, because it can only ask about a version by name;
 * the pods fall back to the `staging` alias, so they become ready as soon as the first training run
   registers a model.
 
-The first promotion is then the same one line change as every later one, and it is the first thing
-that writes `Production` into MLflow. It is also a **full canary**, not a shortcut: the ten pods are
-already running and following the alias, so pinning a version is an ordinary change of the pod
-template and the Rollout walks through 10 %, 50 %, 100 % like any other release.
+The first promotion is then the same one line change as every later one. It is also the first thing
+that writes `Production` into MLflow. It is a full canary, not a shortcut. The ten pods are already
+running and following the alias, so pinning a version is an ordinary change of the pod template.
+The Rollout walks through 10 %, 50 %, 100 % like any other release.
 
 The pods also restart once during this first sync. They start before MLflow is reachable, fail the
-startup probe and come back; `RESTARTS 1` on the first `kubectl get pods` is expected and needs no
+startup probe and come back. `RESTARTS 1` on the first `kubectl get pods` is expected and needs no
 action.
 
 ## Checking the chart without a cluster

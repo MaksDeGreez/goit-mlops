@@ -1,8 +1,8 @@
 # Inference service
 
 A small FastAPI service that answers with the predicted median house value of one California block
-group. It takes the model from the MLflow Model Registry, checks that the file is really the one the
-training job produced, and only then loads it.
+group. It takes the model from the MLflow Model Registry. It checks that the file is really the one
+the training job produced, and only then loads it.
 
 ```bash
 uv sync
@@ -32,9 +32,9 @@ service. A value that cannot be used stops the process at once, with a clear mes
 
 `MODEL_ALIAS` and `MODEL_VERSION` are the two ways to choose a model:
 
-* **alias** — staging follows the alias `staging`, so every new training run is served a minute
+* **alias**: staging follows the alias `staging`, so every new training run is served a minute
   later without any deployment;
-* **version** — production pins the number in git. The pinned version never changes under the pod,
+* **version**: production pins the number in git. The pinned version never changes under the pod,
   and `MODEL_SHA256` can pin the file as well.
 
 ## The API
@@ -74,9 +74,9 @@ Every answer carries a request id, also in the header `X-Request-ID`. A client c
 ## What the service does with the input
 
 All eight features must be there, must be numbers and must be inside the range California really
-has. A string like `"8.3"` is refused too: a client that sends text instead of a number has a bug,
-and guessing what it meant would hide it. An unknown field is refused as well, because a misspelled
-name would otherwise be dropped in silence and the model would quietly use a default.
+has. A string like `"8.3"` is refused too. A client that sends text instead of a number has a bug,
+and guessing what it meant would hide that bug. An unknown field is refused as well. Otherwise a
+misspelled name would be dropped in silence and the model would use a default without saying so.
 
 | Field | Range |
 |---|---|
@@ -91,9 +91,9 @@ name would otherwise be dropped in silence and the model would quietly use a def
 
 ## Errors
 
-Bad input gives **400**, not the 422 that FastAPI returns by default, because the rest of the
-platform treats 4xx as "the client sent something wrong" and 422 is easy to miss. The answer names
-the fields and nothing else — the values that were sent never come back, so a token pasted into the
+Bad input gives **400**, not the 422 that FastAPI returns by default. The rest of the platform
+treats 4xx as "the client sent something wrong", and 422 is easy to miss. The answer names the
+fields and nothing else. The values that were sent never come back, so a token pasted into the
 wrong place is not repeated in a log or an error page.
 
 ```json
@@ -120,41 +120,40 @@ A 500 says nothing at all. The traceback goes to the log, where only the team ca
 4. only now deserialize the file and answer requests with it.
 
 Step 4 runs code, because an MLflow scikit-learn model is a pickle. That is the reason for the
-order: **the checksum is checked before anything is opened.** When the two hashes differ the service
-writes one `checksum_mismatch` line, counts
-`inference_model_load_failures_total{reason="checksum_mismatch"}` and keeps running without a model.
-`/health/ready` then answers 503 for ever, so Kubernetes sends no traffic to the pod and Argo
-Rollouts sees the new version as unhealthy.
+order: **the checksum is checked before anything is opened.** When the two hashes differ, the
+service writes one `checksum_mismatch` line and counts
+`inference_model_load_failures_total{reason="checksum_mismatch"}`. It keeps running without a
+model. `/health/ready` then answers 503 for ever, so Kubernetes sends no traffic to the pod and
+Argo Rollouts sees the new version as unhealthy.
 
-`inference/model_hash.py` is a **copy of `services/training/training/model_hash.py`**, together with
-its test. The two services compare hashes with each other, so the two copies have to stay identical;
-a difference between them would look exactly like a changed model file.
+`inference/model_hash.py` is a **copy of `services/training/training/model_hash.py`**, together
+with its test. The two services compare hashes with each other, so the two copies have to stay
+identical. A difference between them would look exactly like a changed model file.
 
-When an alias is used, a background task checks every `MODEL_RELOAD_SECONDS` whether the alias moved
-to another version. If it did, the new version goes through the same four steps and is swapped in.
-A request that is already running finishes with the old model. If the new version cannot be loaded,
-the old one keeps answering and only the error is logged: a broken registry must not take a working
-pod down.
+When an alias is used, a background task checks every `MODEL_RELOAD_SECONDS` whether the alias
+moved to another version. If it did, the new version goes through the same four steps and is
+swapped in. A request that is already running finishes with the old model. If the new version
+cannot be loaded, the old one keeps answering and only the error is logged. A broken registry must
+not take a working pod down.
 
 The client sets `MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false` (in `inference/__init__.py`, before
-mlflow is imported). With multipart downloads the client is sent to the object store directly, which
-a pod cannot always reach, and the download then silently writes a file of the right size filled
+mlflow is imported). With multipart downloads the client is sent to the object store directly, and
+a pod cannot always reach it. The download then silently writes a file of the right size filled
 with spaces.
 
 The service uses **`mlflow-skinny`**, the same library without the tracking server and its
-dependencies. Downloading a registered version over HTTP and loading it with
-`mlflow.sklearn.load_model` both work with it, which was tested against a real
-`mlflow server --serve-artifacts`.
+dependencies. Downloading a registered version over HTTP works with it, and so does loading it with
+`mlflow.sklearn.load_model`. Both were tested against a real `mlflow server --serve-artifacts`.
 
 ## The rate limit
 
 `/predict` is limited with slowapi, keyed by the address of the client. `/metrics`, `/info` and the
 health endpoints are never limited, so probes and Prometheus keep working under load.
 
-**The counter lives in the memory of one pod.** With ten pods the cluster therefore allows about ten
-times `RATE_LIMIT` in total, and the number resets when a pod restarts. That is good enough here:
-the limit exists to keep one broken client from using up a pod, not to sell quotas. A real shared
-limit would need Redis or a gateway in front of the service.
+**The counter lives in the memory of one pod.** So with ten pods the cluster allows about ten times
+`RATE_LIMIT` in total, and the number resets when a pod restarts. That is good enough here. The
+limit only has to keep one broken client from using up a pod. A real shared limit would need Redis
+or a gateway in front of the service.
 
 ## Metrics
 
@@ -170,10 +169,10 @@ service:
 | `inference_model_info` | `model_name`, `model_version`, `model_sha256` | always 1, says what is loaded |
 | `inference_model_load_failures_total` | `reason` | failed loads, `checksum_mismatch` above all |
 
-Every one of them carries the model version, because during a canary rollout two versions run at the
-same time and the analysis that decides "keep going or roll back" has to compare them.
+Every one of them carries the model version. During a canary rollout two versions run at the same
+time, and the analysis that decides "keep going or roll back" has to compare them.
 
-`status_class` is `2xx`, `4xx` or `5xx`. A refused or rate limited request is a client problem and
+`status_class` is `2xx`, `4xx` or `5xx`. A refused or rate limited request is a client problem. It
 must not look like a broken service, or the canary would roll back for the wrong reason.
 
 Probes and metric scrapes are not counted at all. They arrive every few seconds and would hide the
@@ -182,9 +181,9 @@ real traffic.
 ## Logs
 
 One JSON object per line on stdout. Loki collects them, and the drift job reads the `prediction`
-events back out of Loki, so this format is part of the contract between the services. Every line has
-`ts`, `level`, `event`, `service`, `request_id` and `model_version`. The plain text access log of
-uvicorn is switched off, because we log the same requests ourselves in a format Loki can parse.
+events back out of Loki. So this format is part of the contract between the services. Every line
+has `ts`, `level`, `event`, `service`, `request_id` and `model_version`. The plain text access log
+of uvicorn is switched off, because we log the same requests ourselves in a format Loki can parse.
 
 | Event | When |
 |---|---|
@@ -218,10 +217,10 @@ uvicorn is switched off, because we log the same requests ourselves in a format 
 
 ## The fault switch
 
-`FAULT_RATE` is a demo switch, and it is here on purpose: `FAULT_RATE=1` makes every `/predict` call
+`FAULT_RATE` is a demo switch and it is here on purpose. `FAULT_RATE=1` makes every `/predict` call
 answer 500 with the normal generic body. It is the easy way to show that a canary rollout notices a
-bad version and rolls it back by itself, without having to train a broken model first. In staging
-and production it stays at `0`.
+bad version and rolls it back by itself. No broken model has to be trained first. In staging and
+production it stays at `0`.
 
 ## Numbers from a real run
 
@@ -234,8 +233,8 @@ development machine (arm64 Mac):
 
 In the container the same prediction first took **68 ms**. One row is far too
 little work to share between threads, and all of that time went into starting
-and synchronising the OpenMP threads scikit-learn uses. The image therefore
-sets `OMP_NUM_THREADS=1`, which brings the prediction back to **3.3 ms**.
+and synchronising the OpenMP threads scikit-learn uses. So the image sets
+`OMP_NUM_THREADS=1`, which brings the prediction back to **3.3 ms**.
 
 ## Tests
 
@@ -244,9 +243,9 @@ uv run pytest
 ```
 
 115 tests, under a second, no network. A real but very small scikit-learn pipeline is saved once in
-MLflow's own format, and a fake source hands that folder to the service instead of downloading it.
+MLflow's own format. A fake source hands that folder to the service instead of downloading it.
 Everything after the download is the real code: the checksum, the deserialization, the prediction.
 
-The tests cover the settings, every kind of refused input, the rate limit, the readiness before and
-after loading, the refusal to open a model with a wrong checksum, the swap to a new version while
-the service runs, the metric names and labels, and the JSON log lines.
+The tests cover the settings, every kind of refused input, the rate limit, and the readiness before
+and after loading. They also cover the refusal to open a model with a wrong checksum, the swap to a
+new version while the service runs, the metric names and labels, and the JSON log lines.

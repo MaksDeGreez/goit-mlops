@@ -1,8 +1,8 @@
 # Training service
 
 Trains the California Housing model and writes a new version into the MLflow Model Registry. It is
-a batch job, not a server: it runs, prints one line of JSON and exits. Later it is started by the
-Step Functions pipeline as a Kubernetes Job.
+a batch job, not a server: it runs, prints one line of JSON and exits. In the cluster it is started
+by the Step Functions pipeline as a Kubernetes Job.
 
 ```bash
 uv sync
@@ -44,10 +44,10 @@ Every setting is an environment variable and a command line option. The option w
 | | `--min-samples-leaf` | `20` | |
 | | `--l2-regularization` | `0.0` | |
 
-`DATA_PATH` has two defaults, and the first one that exists is used:
-`/app/data/california_housing.csv` inside the container (the image is built with `final-project/`
-as the build context) and `final-project/data/california_housing.csv` in the repository. So the job
-runs in both places without any setting.
+`DATA_PATH` has two defaults, and the first one that exists is used. Inside the container it is
+`/app/data/california_housing.csv`, because the image is built with `final-project/` as the build
+context. In the repository it is `final-project/data/california_housing.csv`. So the job runs in
+both places without any setting.
 
 ## The line the pipeline reads
 
@@ -66,40 +66,39 @@ parse. A run that fails exits with code 1 and prints nothing on stdout.
 ## What the model version carries
 
 Every version gets these tags, all of them strings: `git_sha`, `dataset_sha256`, `model_sha256`,
-`rmse`, `mae`, `r2`, `run_id`. Together they answer "which code and which data produced this model,
-and is the file still the one that was trained?". The git sha and the dataset hash are also run
-parameters and run tags, so they can be searched in the MLflow UI.
+`rmse`, `mae`, `r2`, `run_id`. Together they answer two questions. Which code and which data
+produced this model? And is the file still the one that was trained? The git sha and the dataset
+hash are also run parameters and run tags, so they can be searched in the MLflow UI.
 
 The new version always becomes the `staging` one:
 
-* **alias `staging`** — this is what the services actually use, and it always points at the newest
+* **alias `staging`**: this is what the services actually use, and it always points at the newest
   version;
-* **stage `Staging`** — the old MLflow field. It is deprecated and MLflow raises a `FutureWarning`,
+* **stage `Staging`**: the old MLflow field. It is deprecated and MLflow raises a `FutureWarning`,
   which the code hides for that one call. It is set because the assignment describes the workflow
-  with stage names and they are visible in the UI.
+  with stage names, and because the stages are visible in the UI.
 
 Moving a version to production, archiving the one before it and rolling back is not this service's
-job: that is `services/registry-ops`.
+job. That is `services/registry-ops`.
 
 ## How the model is stored
 
 MLflow 3 saves scikit-learn models with the `skops` format by default. That format refuses to save
-a `HistGradientBoostingRegressor` or our own transformer unless every type is listed as trusted, so
-the job uses the older `cloudpickle` format and the file is called `model.pkl`. The name is never
-hard-coded anywhere: it is read from `flavors.sklearn.pickled_model` in the `MLmodel` file.
+a `HistGradientBoostingRegressor` or our own transformer unless every type is listed as trusted.
+So the job uses the older `cloudpickle` format and the file is called `model.pkl`. The name is
+never hard-coded anywhere: it is read from `flavors.sklearn.pickled_model` in the `MLmodel` file.
 
-Because the pipeline contains our own steps, the `training` package is stored inside the model
-artifact (`code_paths`). The inference service can therefore load the model without the training
-code installed.
+The pipeline contains our own steps, so the `training` package is stored inside the model artifact
+(`code_paths`). The inference service can then load the model without the training code installed.
 
 `training/model_hash.py` computes the checksum of that file. **The inference service has an
-identical copy of this module and of its test.** Training writes the hash, inference recomputes it
+identical copy of this module and of its test.** Training writes the hash. Inference recomputes it
 after downloading and refuses to serve a model if the two differ. Two copies that drift apart would
 look exactly like a changed model file, so they must be kept the same.
 
 Clients set `MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false` (done in `training/__init__.py`, before
-mlflow is imported). With multipart downloads the client is sent to the object store directly, which
-a client outside the cluster cannot reach, and the download then silently writes a file of the right
+mlflow is imported). With multipart downloads the client is sent to the object store directly, and
+a client outside the cluster cannot reach it. The download then silently writes a file of the right
 size filled with spaces.
 
 ## Tests
@@ -110,9 +109,10 @@ uv run pytest
 
 55 tests, about 10 seconds. The unit tests cover the data checks, every preprocessing function, the
 pipeline and the checksum helper. `tests/test_run_integration.py` starts the job as a subprocess
-twice against a temporary SQLite-backed MLflow and checks the JSON line, the metrics in the run,
-all seven tags, the alias and the stage, that the second run creates version 2 and moves the alias,
-that the same data gives the same metrics, and that a missing data file gives exit code 1.
+twice, against a temporary SQLite-backed MLflow. It checks the JSON line, the metrics in the run,
+all seven tags, the alias and the stage. It also checks that the second run creates version 2 and
+moves the alias, that the same data gives the same metrics, and that a missing data file gives exit
+code 1.
 
 SQLite is used because the plain file store cannot do model versions, aliases or stages. The
 artifacts stay in a temporary folder, so running the tests leaves nothing behind.

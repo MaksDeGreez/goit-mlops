@@ -1,9 +1,9 @@
 # drift-monitor
 
-Batch job that answers one question: does the traffic the model sees still look like the data it was
-trained on? It reads the prediction logs of the inference service back from Loki, compares them with
-the reference sample and pushes the result to the PushGateway. In the cluster it is a Kubernetes
-CronJob.
+Batch job that answers one question: does the traffic the model sees still look like the data it
+was trained on? It reads the prediction logs of the inference service back from Loki. It compares
+them with the reference sample and pushes the result to the PushGateway. In the cluster it is a
+Kubernetes CronJob.
 
 ```bash
 uv sync
@@ -52,9 +52,9 @@ The default query is
 {namespace="production", app="inference"} | json | event="prediction"
 ```
 
-`REFERENCE_PATH` has two defaults and the first one that exists is used:
-`/app/data/reference.csv` inside the container (the image is built with `final-project/` as the build
-context) and `final-project/data/reference.csv` in the repository.
+`REFERENCE_PATH` has two defaults, and the first one that exists is used. Inside the container it is
+`/app/data/reference.csv`, because the image is built with `final-project/` as the build context. In
+the repository it is `final-project/data/reference.csv`.
 
 An empty `PUSHGATEWAY_URL` is on purpose: a local run then prints the numbers and touches nothing.
 
@@ -62,42 +62,42 @@ An empty `PUSHGATEWAY_URL` is on purpose: a local run then prints the numbers an
 
 The inference service prints one JSON object per prediction, with the eight features under
 `features`. In a `query_range` answer every stream holds
-`values: [[<nanosecond timestamp as a string>, <log line>], ...]`, and the log line is still exactly
-the JSON the service printed — `| json` in the query only adds labels.
+`values: [[<nanosecond timestamp as a string>, <log line>], ...]`. The log line is still exactly the
+JSON the service printed, because `| json` in the query only adds labels.
 
-A log stream carries more than predictions, and a line can arrive cut in half, so lines that do not
-parse or are not prediction events are counted and skipped, never fatal. Rows missing a feature are
-dropped as well. Both counts are in the `loaded_current` log line.
+A log stream carries more than predictions, and a line can arrive cut in half. So lines that do not
+parse, or that are not prediction events, are counted and skipped. They are never fatal. Rows
+missing a feature are dropped as well. Both counts are in the `loaded_current` log line.
 
 ## The drift check
 
 Evidently 0.7 with `DataDriftPreset(method="psi")` over the eight feature columns. **Current data
-first, reference second.** PSI is a distance: a high score means drift, and the default threshold per
-column is 0.1. The method is pinned because the default score of the preset is a p-value, where a
-*low* value means drift — the two read in opposite directions and a dashboard should never have to
-guess which one it is showing.
+first, reference second.** PSI is a distance: a high score means drift, and the default threshold
+per column is 0.1. The method is pinned because the default score of the preset is a p-value, where
+a *low* value means drift. The two read in opposite directions, and a dashboard should never have
+to guess which one it is showing.
 
 The target column `MedHouseVal` is dropped. Live there is no target, only a prediction, and a
 prediction is not a real house price. Comparing the two would report drift that is not there.
 
 ### What PSI does and does not see on this dataset
 
-PSI puts the values into bins built from the reference, and the reference of California Housing has
-very long tails: `AveOccup` goes up to 1243 and `Population` up to 15507, while normal rows are far
-below that. Measured on real runs:
+PSI puts the values into bins built from the reference. The reference of California Housing has very
+long tails: `AveOccup` goes up to 1243 and `Population` up to 15507, while normal rows are far below
+that. Measured on real runs:
 
 | Change to the live data | PSI |
 |---|---|
-| `AveOccup` × 2 or × 5 | 0.0008 — not seen at all |
+| `AveOccup` × 2 or × 5 | 0.0008 (not seen at all) |
 | `AveOccup` × 20 | 0.11 |
 | `Population` × 2 | 0.99 |
 | `AveRooms` × 2 | 0.91 |
 | `MedInc` × 2.5 | 3.08 |
 | `HouseAge` replaced by uniform(1, 6) | 9.80 |
 
-So a change in a long-tailed column has to be large before the score moves. It is worth knowing
-before an alert threshold is chosen: the columns with a narrow range react quickly, the ones with
-outliers do not. A reference sample with the tails clipped would react much faster, but the
+So a change in a long-tailed column has to be large before the score moves. This is worth knowing
+before an alert threshold is chosen. The columns with a narrow range react quickly, the ones with
+outliers do not. A reference sample with the tails clipped would react much faster. But the
 reference has to stay the data the model was really trained on, so it is left as it is.
 
 ## Metrics
@@ -129,7 +129,7 @@ covers both:
 
 Events: `started`, `loaded_reference`, `loaded_current`, `not_enough_samples`, `drift_checked`,
 `report_saved`, `pushed_metrics`, `push_skipped`, `failed`. A failure prints the message in the log
-line and the traceback on stderr, so stdout stays one JSON object per line.
+line and the traceback on stderr. That way stdout stays one JSON object per line.
 
 ## Tests
 
@@ -137,8 +137,8 @@ line and the traceback on stderr, so stdout stays one JSON object per line.
 uv run pytest
 ```
 
-31 tests, about 3 seconds, and **no network**: the Loki answer is a fixture file
-(`tests/fixtures/loki_query_range.json`) with two streams, a `request` event and a line cut in half,
-and the PushGateway call is replaced in every test. The drift tests use the real reference file: a
+31 tests, about 3 seconds, and **no network**. The Loki answer is a fixture file
+(`tests/fixtures/loki_query_range.json`) with two streams, a `request` event and a line cut in half.
+The PushGateway call is replaced in every test. The drift tests use the real reference file: a
 sample of it must show no drift, and the same sample with three features moved must show exactly
 those three.

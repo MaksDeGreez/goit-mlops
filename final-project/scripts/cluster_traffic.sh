@@ -39,6 +39,13 @@ if [[ "$target" != "staging" && "$target" != "production" ]]; then
   exit 2
 fi
 
+# The pod only sleeps for four hours. One that has finished is of no use, so it
+# is removed and started again.
+phase="$(kubectl -n "$namespace" get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+if [[ -n "$phase" && "$phase" != "Running" && "$phase" != "Pending" ]]; then
+  kubectl -n "$namespace" delete pod "$pod" --wait=true >/dev/null
+fi
+
 if ! kubectl -n "$namespace" get pod "$pod" >/dev/null 2>&1; then
   kubectl -n "$namespace" run "$pod" --image="$image" --restart=Never \
     --labels="app.kubernetes.io/name=traffic-generator" \

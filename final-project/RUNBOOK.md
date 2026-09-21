@@ -60,10 +60,9 @@ kubectl -n monitoring get secret grafana-admin \
 
 ### Sending traffic
 
-Use a port-forward only to look at a single pod. For anything that has to reach
-the whole release — a canary, the dashboards, the drift job — send the traffic
-**from inside the cluster**, because a forward would put every request on the
-same pod:
+Use a port-forward only to look at a single pod. Anything that has to reach the
+whole release needs traffic from inside the cluster: a canary, the dashboards,
+the drift job. A forward would put every request on the same pod.
 
 ```bash
 scripts/cluster_traffic.sh production --mode normal  --count 3000 --rate 10
@@ -93,12 +92,12 @@ empty trains on the whole dataset with the image built from the current commit.
 
 It starts the Step Functions state machine, waits for it, and writes the result
 into the job summary: model name, version, `rmse`, `mae`, `r2`, `run_id`,
-`dataset_sha256` and `model_sha256`. Write down the **version** and the
-**`model_sha256`** — the promotion needs both.
+`dataset_sha256` and `model_sha256`. Write down the version and the
+`model_sha256`. The promotion needs both.
 
-Measured on the full dataset: the state machine takes about **55 seconds** and
-the whole workflow about **1 minute 20**. If it takes much longer, look at the
-Job in `mlops-system`; the Step Functions console shows its last log lines.
+Measured on the full dataset: the state machine takes about 55 seconds and the
+whole workflow about 1 minute 20. If it takes much longer, look at the Job in
+`mlops-system`. The Step Functions console shows its last log lines.
 
 By hand instead:
 
@@ -145,9 +144,9 @@ Nothing else. Argo CD sees the commit within a minute.
 
 ### 4. Send traffic, and watch the canary
 
-Start the traffic **first**, in a second terminal. With no traffic the analysis
-has nothing to measure, treats the empty answer as success and lets any version
-through — see [A canary aborted by itself](#a-canary-aborted-by-itself).
+Start the traffic first, in a second terminal. With no traffic the analysis has
+nothing to measure. It treats the empty answer as success and lets any version
+through: see [A canary aborted by itself](#a-canary-aborted-by-itself).
 
 ```bash
 scripts/cluster_traffic.sh production --mode normal --count 3000 --rate 10
@@ -159,7 +158,7 @@ pause → all 10. The background analysis queries Prometheus every 30 seconds fo
 the 5xx share of the new version and aborts after three failed measurements in
 a row.
 
-A healthy promotion takes **about five minutes** and ends with the AnalysisRun
+A healthy promotion takes about five minutes and ends with the AnalysisRun
 `Successful` and nine good measurements.
 
 Without the plugin:
@@ -192,7 +191,7 @@ A real one, from the promotion of version 1:
  "result": "success", "error": null, "level": "info"}
 ```
 
-Every promotion after the first one prints **two** lines: `archive` for the
+Every promotion after the first one prints two lines: `archive` for the
 version that was live, then `promote` for the new one.
 
 `git_sha` is the commit Argo CD had synced when the hook ran. That is usually
@@ -218,20 +217,20 @@ promotion workflow uses. With the switch on, only the aliases are shown.
 **Symptoms.** The new version is worse: wrong predictions, higher latency,
 errors that the canary did not catch, or a business decision.
 
-**Action — one command:**
+**Action.** One command:
 
 ```bash
 git revert <the promotion commit>
 git push
 ```
 
-That puts the old `modelVersion` and `modelSha256` back. Argo CD syncs, Argo
-Rollouts runs the canary again in the other direction, and after it finishes
-the `PostSync` hook runs `registry_ops sync --production-version <old>`, which
-moves the `production` alias and the `Production` stage back and archives the
-version that was live.
+That puts the old `modelVersion` and `modelSha256` back. Argo CD syncs and Argo
+Rollouts runs the canary again in the other direction. After it finishes, the
+`PostSync` hook runs `registry_ops sync --production-version <old>`. That moves
+the `production` alias and the `Production` stage back, and archives the version
+that was live.
 
-It is the same path as a promotion, so it takes the same **five minutes or so**.
+It is the same path as a promotion, so it takes the same five minutes or so.
 Send traffic while it runs, for the same reason.
 
 **Checks.**
@@ -242,7 +241,7 @@ curl -s localhost:8000/info | jq '.model_version'
 kubectl -n production logs job/inference-registry-sync
 ```
 
-A real rollback from version 2 back to version 1 — two lines, in this order:
+A real rollback from version 2 back to version 1. Two lines, in this order:
 
 ```json
 {"action": "archive",  "version": "2", "from_stage": "Production", "to_stage": "Archived",
@@ -255,8 +254,8 @@ A real rollback from version 2 back to version 1 — two lines, in this order:
 archived and says so, which is what makes `git revert` readable in the audit
 trail.
 
-**If the registry has to be fixed without a deployment** — the escape hatch,
-for example when the Job failed but the pods are fine:
+**If the registry has to be fixed without a deployment.** This is the escape
+hatch, for example when the Job failed but the pods are fine:
 
 ```bash
 kubectl -n mlops-system run registry-ops --rm -it --restart=Never \
@@ -279,17 +278,17 @@ kubectl argo rollouts abort inference -n production
 ```
 
 The old pods take all the traffic again straight away. The Application goes
-`Degraded`, so the `PostSync` hook does **not** run and the registry keeps
-naming the old version — which is correct. Afterwards, `git revert` the
-promotion commit, otherwise Argo CD's self-heal will start the canary again.
+`Degraded`, so the `PostSync` hook does not run and the registry keeps naming
+the old version, which is correct. Afterwards, `git revert` the promotion
+commit, or Argo CD's self-heal will start the canary again.
 
 <a id="inference-latency"></a>
 <a id="latency"></a>
 
 ## Latency
 
-**Alert:** *Inference p95 latency is too high* — p95 over 250 ms in
-`production` for 5 minutes. The service answers in about 5 ms when it is
+**Alert:** *Inference p95 latency is too high*. It fires on a p95 over 250 ms
+in `production` for 5 minutes. The service answers in about 5 ms when it is
 healthy.
 
 **Checks.**
@@ -332,8 +331,8 @@ in Grafana → Alerting → Alert rules.
 
 ## Error rate
 
-**Alert:** *Inference is returning server errors* — more than 1 % of
-`production` requests end in 5xx for 5 minutes. Refused input (400) and rate
+**Alert:** *Inference is returning server errors*. It fires when more than 1 %
+of `production` requests end in 5xx for 5 minutes. Refused input (400) and rate
 limiting (429) are counted separately and never trigger this rule, so a 5xx
 means the service itself failed.
 
@@ -388,19 +387,19 @@ to be live.
 
 ## Data drift
 
-**Alert:** *The live data no longer looks like the training data* — the drifted
-share is above 0.25 for 5 minutes. That means at least two of the eight
+**Alert:** *The live data no longer looks like the training data*. It fires
+when the drifted share is above 0.25 for 5 minutes. That means at least two of the eight
 features have moved a long way from the reference sample.
 
 **Read the dashboard first.** Grafana → MLOps → *Model quality*:
 
-- `data_drift_share` — how many of the eight features drifted, as a share.
-- `data_drift_score{column}` — the PSI score per column. This is the panel that
+- `data_drift_share`: how many of the eight features drifted, as a share.
+- `data_drift_score{column}`: the PSI score per column. This is the panel that
   says *which* feature moved.
-- `data_drift_samples` — how many prediction log lines the run had. Below the
+- `data_drift_samples`: how many prediction log lines the run had. Below the
   `minSamples` of 400 the job pushes only this number and exits, so a low value
   means "no verdict", not "no drift".
-- `data_drift_last_run_timestamp_seconds` — when the last run finished.
+- `data_drift_last_run_timestamp_seconds`: when the last run finished.
 
 Same numbers from Prometheus:
 
@@ -410,9 +409,9 @@ topk(3, data_drift_score)
 max(data_drift_samples)
 ```
 
-**Confirm it with a run you watch yourself.** Start one job by hand and read
-its output; the CronJob does not keep the HTML report, but the log holds the
-same numbers Evidently produced:
+**Confirm it with a run you watch yourself.** Start one job by hand and read its
+output. The CronJob does not keep the HTML report, but the log holds the same
+numbers Evidently produced:
 
 ```bash
 kubectl -n mlops-system create job drift-now --from=cronjob/drift-monitor
@@ -434,8 +433,8 @@ compared with something:
 
 Two readings follow from that table. PSI keeps growing as the window fills, so
 a rising score on the same columns is one event and not two. And the share
-**falls again by itself** once normal traffic returns, because the job always
-looks at the newest 5000 lines — a share that does not fall is the one to worry
+falls again by itself once normal traffic returns, because the job always looks
+at the newest 5000 lines. A share that does not fall is the one to worry
 about.
 
 **Two things to know about this dataset before deciding.**
@@ -443,14 +442,14 @@ about.
 - **The `AveOccup` blind spot.** PSI bins the live values into bins built from
   the reference, and `AveOccup` has a very long tail (up to 1243 in the
   reference). Measured: doubling or even quintupling `AveOccup` gives a PSI of
-  0.0008 — invisible. It takes a factor of 20 to reach 0.11. Narrow columns
-  such as `MedInc` or `HouseAge` react immediately. So **a low score on
-  `AveOccup` is not proof that nothing changed.**
+  0.0008, which is invisible. It takes a factor of 20 to reach 0.11. Narrow
+  columns such as `MedInc` or `HouseAge` react at once. So a low score on
+  `AveOccup` is not proof that nothing changed.
 - **The 400 sample minimum.** Below 400 rows in the window, PSI on this data
   reports drift that is not there, purely because some bins end up empty by
   chance. The job refuses to judge below that number on purpose.
 
-**Actions — the decision belongs to the ML model owner.**
+**Actions.** The decision belongs to the ML model owner.
 
 | What is seen | Do this |
 |---|---|
@@ -510,8 +509,8 @@ drift-now`.
 ## A canary aborted by itself
 
 **Symptoms.** The Argo CD Application `inference-production` is `Degraded`. The
-Rollout says `Degraded` with `RolloutAborted`. Production is serving the **old**
-version — which is the point.
+Rollout says `Degraded` with `RolloutAborted`. Production is serving the old
+version, which is the point.
 
 **Checks.**
 
@@ -545,7 +544,7 @@ Two different things can have happened:
    [Error rate](#error-rate).
 2. **The progress deadline ran out.** `progressDeadlineSeconds` is 600 and
    `progressDeadlineAbort: true`. This is what happens when the new pods never
-   become ready — almost always a checksum mismatch, see
+   become ready. That is almost always a checksum mismatch, see
    [A model fails the checksum](#a-model-fails-the-checksum).
 
 **How bad was it?** Look at *Share of 5xx answers* on the inference dashboard.
@@ -568,9 +567,9 @@ Without the revert, self-heal will start the same canary again on the next
 reconciliation.
 
 **Expect a delay before the revert takes effect.** After the abort the sync
-operation is a failed one, and Argo CD retries it with a backoff — five
-attempts, five to eight minutes in total — before it looks at the new commit.
-Nothing is broken during that time: production keeps serving the old version.
+operation counts as failed, and Argo CD retries it with a backoff before it
+looks at the new commit: five attempts, five to eight minutes in total. Nothing
+is broken during that time, because production keeps serving the old version.
 Two ways forward:
 
 - **wait.** The revert is applied after the last retry. No action needed, and
@@ -581,7 +580,7 @@ Two ways forward:
 
 **Confirm.** The Application is `Synced/Healthy` again, the Rollout is
 `Healthy`, `curl /info` shows the old version, and the registry still names the
-old version as production — the `PostSync` hook never ran, which is correct.
+old version as production. The `PostSync` hook never ran, which is correct.
 
 <a id="check-the-rbac"></a>
 
@@ -595,7 +594,7 @@ scripts/check_rbac.sh
 ```
 
 The script asks the cluster 32 `kubectl auth can-i` questions for the three
-groups — `mlops-engineers`, `viewers`, `stepfunctions-runners` — and compares
+groups (`mlops-engineers`, `viewers`, `stepfunctions-runners`) and compares
 every answer with the tables in [`rbac/README.md`](rbac/README.md). It prints
 one row per question and ends with `All 32 answers match rbac/README.md.` It
 exits non-zero on the first mismatch, so it can be run from a pipeline.
@@ -622,7 +621,7 @@ Two things to remember when adding a question:
 `inference_model_load_failures_total{reason="checksum_mismatch"}` is above
 zero.
 
-This is the safety net working. The service hashes the model file **before**
+This is the safety net working. The service hashes the model file before
 unpickling it and refuses to load a file that does not match.
 
 **Checks.**
@@ -652,8 +651,8 @@ comes from:
 
 ## MLflow answers 403
 
-**Symptoms.** MLflow returns `403` with `Invalid Host header` — from the
-browser through a port-forward, or from the training job.
+**Symptoms.** MLflow returns `403` with `Invalid Host header`, either from the
+browser through a port-forward or from the training job.
 
 **Cause.** MLflow 3 checks the `Host` header of every request against
 `serverAllowedHosts` in `gitops/apps/mlflow/values.yaml`. The port is part of

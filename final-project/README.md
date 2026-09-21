@@ -333,6 +333,11 @@ checked model never takes traffic. It is fixed by the next step.
 
 ![a training run started from the Actions tab](docs/screenshots/16-ci-training-run-green.png)
 
+A second run with `max_iter` set to 50 gives a smaller model, so version 2 really differs from
+version 1 (different checksum, slightly worse metrics):
+
+![the second training run](docs/screenshots/24-ci-training-run-v2.png)
+
 The same rule applies here: the button needs the workflow file on the default
 branch. Pick `final-project` in the branch list of the dialog, so the workflow
 and the code of that branch are used. Without the button, the same run can be

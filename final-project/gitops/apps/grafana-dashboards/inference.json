@@ -123,7 +123,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(inference_requests_total{namespace=\"$namespace\", status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(inference_requests_total{namespace=\"$namespace\"}[5m])), 0.001)",
+          "expr": "(sum(rate(inference_requests_total{namespace=\"$namespace\", status_class=\"5xx\"}[5m])) or vector(0)) / clamp_min(sum(rate(inference_requests_total{namespace=\"$namespace\"}[5m])), 0.001)",
           "editorMode": "code",
           "legendFormat": "__auto",
           "range": true,
@@ -321,8 +321,8 @@
           "expr": "count by (model_version) (inference_model_info{namespace=\"$namespace\"})",
           "editorMode": "code",
           "legendFormat": "version {{model_version}}",
-          "range": true,
-          "instant": false
+          "range": false,
+          "instant": true
         }
       ],
       "fieldConfig": {
@@ -345,7 +345,7 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": "",
           "values": false

@@ -3,7 +3,7 @@ terraform {
   # through terraform_remote_state, and so the state does not depend on which
   # branch happens to be checked out.
   #
-  # The bucket was created once by hand (lesson-5/scripts/create_state_bucket.sh)
+  # The bucket was created once by hand (final-project/scripts/create_state_bucket.sh)
   # and is not managed by Terraform. If it were, "terraform destroy" would
   # delete the bucket together with the state file inside it.
   #

@@ -87,6 +87,9 @@ the chart would own the same object and fight over it on every sync.
 answer with the expected one. Subresources are written with `--subresource=`: the short form
 `pods/portforward` is answered with "no" by kubectl for some verbs even when the rule exists.
 
+It was run against the deployed cluster and **all 32 answers matched this file**, denials included.
+The script exits non-zero on the first mismatch, so it also works as a check after a change here.
+
 Run these with an account that may impersonate (the cluster creator). The expected answer is next to
 each line; the denials matter as much as the allowances.
 

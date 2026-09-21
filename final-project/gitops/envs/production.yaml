@@ -52,8 +52,8 @@ modelName: california-housing
 # up instead of waiting for a version that does not exist yet. The first
 # promotion fills both lines in, and from then on production is pinned: the
 # service ignores the alias as soon as a version is set.
-modelVersion: "1"
-modelSha256: "78c3e5315ceb0fccab5393620353e6c801bb5ef0f9658f87e50b05135386a21e"
+modelVersion: ""
+modelSha256: ""
 # -----------------------------------------------------------------------------
 
 modelAlias: staging

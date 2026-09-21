@@ -266,9 +266,10 @@ terraform init
 terraform apply
 ```
 
-About 15 minutes; almost all of it is the EKS control plane. This creates the
-VPC, the cluster with one arm64 node group, the four ECR repositories, the
-GitHub OIDC provider and the CI role.
+**75 resources, about 18 minutes** when it was really applied; almost all of
+that is the EKS control plane. This creates the VPC, the cluster with one arm64
+node group, the four ECR repositories, the GitHub OIDC provider and the CI
+role.
 
 Write down two outputs:
 
@@ -282,6 +283,16 @@ terraform output update_kubeconfig_command
 ```bash
 aws eks update-kubeconfig --name mlops-final --region us-east-1 --profile goit
 kubectl get nodes          # two nodes, Ready
+```
+
+Two things are worth checking here, because both are silent when they go wrong:
+
+```bash
+# 110 and not 35: the VPC CNI is using prefix delegation
+kubectl get nodes -o custom-columns=NAME:.metadata.name,MAXPODS:.status.allocatable.pods
+
+# ebs-csi-default-sc must be marked (default), or every PVC waits for ever
+kubectl get storageclass
 ```
 
 ### Step 3 — repository variables, and push the images
@@ -347,9 +358,9 @@ terraform init
 terraform apply
 ```
 
-About five minutes. This creates the five namespaces, the two generated
-secrets, the MLflow S3 bucket and its Pod Identity role, the two Lambdas and
-the Step Functions state machine, and finally Argo CD with one root
+**31 resources, about six minutes.** This creates the five namespaces, the two
+generated secrets, the MLflow S3 bucket and its Pod Identity role, the two
+Lambdas and the Step Functions state machine, and finally Argo CD with one root
 Application.
 
 Now fill in the third repository variable:
@@ -383,12 +394,19 @@ kubectl -n argocd get applications
 kubectl get pods -A
 ```
 
-It takes about ten minutes for everything to be `Synced`.
+All fifteen Applications were `Synced` and `Healthy` about **eight minutes**
+after the platform stack finished.
 
 **Expected at this point:** the inference pods start but stay **not ready**.
 There is no model in the registry yet, so `/health/ready` answers 503 and both
 inference Applications show `Progressing`. That is the design: a pod without a
 checked model never takes traffic. It is fixed by the next step.
+
+**Also expected, and harmless:** two restart counters after the very first
+sync. The twelve inference pods show `RESTARTS 1` because they started before
+MLflow was reachable and failed the startup probe once; `opencost` shows
+`RESTARTS 2` because it waits for Prometheus, which is in a later wave. Both
+settle by themselves and neither needs an action.
 
 ### Step 7 — the first training run
 
@@ -413,7 +431,16 @@ the `training_finished` line out of the pod's logs and returns it. The job
 summary then shows the version, `rmse`, `mae`, `r2`, `run_id`,
 `dataset_sha256` and `model_sha256`.
 
-A run on the full dataset takes two or three minutes.
+Measured: the Step Functions execution took **54 seconds** and the whole
+workflow **1 minute 18 seconds**. The two runs that were used for the demo:
+
+| Run | Parameters | Version | rmse | mae | r2 |
+|---|---|---|---|---|---|
+| 1 | defaults (`max_iter` 200) | 1 | 0.4453 | 0.2947 | 0.8487 |
+| 2 | `max_iter` 50 | 2 | 0.4897 | 0.3297 | 0.8170 |
+
+Run 1 gives exactly the same numbers as a local run on the same data, which is
+what pinning the dataset hash is for.
 
 ### Step 8 — staging picks it up, then promote
 
@@ -439,14 +466,16 @@ git commit -am "Promote model version 1 to production"
 git push
 ```
 
-Argo CD syncs within a minute. Because this is the first version production
-ever had, Argo Rollouts brings all ten pods up at once instead of running the
-canary steps — there is nothing to compare against. Every promotion after this
-one is a real canary.
+Argo CD syncs within a minute. The ten pods were already running and following
+the alias, so pinning a version is a normal change of the pod template and Argo
+Rollouts runs the full canary: one pod, a two minute pause, five pods, a two
+minute pause, all ten. Measured end to end: **about five minutes**, with nine
+successful background measurements.
 
 When the Rollout is healthy, the `PostSync` hook Job runs
 `registry_ops sync --production-version 1`, which sets the alias `production`
-and the stage `Production` and prints one JSON audit line.
+and the stage `Production` and prints one JSON audit line. That Job took 9
+seconds.
 
 ### Step 9 — verify
 
@@ -462,17 +491,21 @@ curl -s localhost:8000/info | jq '.model_version, .model_sha256'
 kubectl -n production logs job/inference-registry-sync
 
 # traffic, so the dashboards and the drift job have something to show
-python3 scripts/send_traffic.py --mode normal --count 500 --rate 15 \
-  --url http://localhost:8000
+scripts/cluster_traffic.sh production --mode normal --count 3000 --rate 10
 ```
+
+Send the traffic **from inside the cluster**, not through a port-forward. A
+port-forward connects to one single pod, so during a canary it would hit either
+only the new version or only the old one. `scripts/cluster_traffic.sh` runs a
+small throw-away pod that calls the Service instead, and
+`scripts/cluster_traffic.sh clean` removes it afterwards.
 
 Then open Grafana (below) and look at the *Inference* dashboard. After the next
 quarter of an hour the drift CronJob has run and the *Model quality* dashboard
 has numbers as well.
 
-> `TODO(after deploy): add the screenshots of the deployed system — Argo CD with
-> every Application Synced/Healthy, the MLflow registry with a version in
-> Production, the three Grafana dashboards, and a canary rollout in progress.`
+What all of this looked like on the real cluster, step by step and with the
+measured numbers, is in [`docs/demo-trace.md`](docs/demo-trace.md).
 
 ## Namespaces
 
@@ -512,7 +545,7 @@ Each command opens one port and holds it until `Ctrl+C`.
 | What | Command | Address | Login |
 |---|---|---|---|
 | Argo CD | `kubectl -n argocd port-forward svc/argocd-server 8080:80` | <http://localhost:8080> | `admin`, password below |
-| MLflow | `kubectl -n mlops-system port-forward svc/mlflow 5000:5000` | <http://localhost:5000> | none |
+| MLflow | `kubectl -n mlops-system port-forward svc/mlflow 5001:5000` | <http://localhost:5001> | none |
 | Grafana | `kubectl -n monitoring port-forward svc/grafana 3000:80` | <http://localhost:3000> | `admin`, password below |
 | Prometheus | `kubectl -n monitoring port-forward svc/prometheus-server 9090:80` | <http://localhost:9090> | none |
 | inference, production | `kubectl -n production port-forward svc/inference 8000:80` | <http://localhost:8000> | none |
@@ -532,8 +565,16 @@ No password is ever printed by `terraform output`. The outputs give the
 `kubectl` command that reads the secret when it is needed, so the value never
 lands in a terminal scrollback or in a screenshot by accident.
 
+MLflow is forwarded to 5001 because macOS uses 5000 for AirPlay; `5000:5000`
+works everywhere else. MLflow 3 checks the `Host` header including the port, so
+any port used here has to be covered by `serverAllowedHosts` in
+`gitops/apps/mlflow/values.yaml` — it allows `localhost:*` and `127.0.0.1:*`.
+
 > A port-forward binds to one **pod**, not to the Service. Restarting that pod
-> kills the forward without a message.
+> kills the forward without a message. It is also the reason traffic for a
+> canary has to come from inside the cluster
+> (`scripts/cluster_traffic.sh`): a forward would send every request to the
+> same pod.
 
 ## Observability
 
@@ -614,6 +655,10 @@ of the runbook.
 | The live data no longer looks like the training data | warning | drifted share > 0.25 for 5 min |
 | The drift job has not run for two hours | warning | last run older than 2 h |
 
+The drift rule was seen going from Normal to **Firing** on the running cluster
+after 6000 drifted requests: `max(data_drift_share)` reached 0.375 against the
+threshold of 0.25, and it returned to Normal when normal traffic came back.
+
 The contact point is a **placeholder address** and no SMTP server is
 configured, so nothing is actually delivered; alerts are visible in the Grafana
 UI. See [`docs/escalation-policy.md`](docs/escalation-policy.md) for who would
@@ -685,16 +730,25 @@ share of the **new** version only. Three failed measurements in a row abort the
 rollout and the old pods take everything back. 4xx is excluded on purpose: bad
 JSON from a client is not the new model's fault.
 
+Both halves were measured. A good promotion takes **about five minutes** and
+nine measurements. A bad one was aborted **about two minutes after the push**,
+after three measurements of 0.548, 0.583 and 0.572 against the limit of 0.05.
+Because only one pod of eleven served the bad version, the whole service never
+showed more than **2.08 % of 5xx**, for about two minutes.
+
 Staging uses the same chart with `canaryEnabled: false` — a plain rolling
 update, because a new model should appear there at once.
 
 Why canary and not Blue-Green or A/B, what it costs, and what would be done
 with more time: [`ADR.md`](ADR.md).
 
-To see the automatic abort on purpose, set `faultRate: 1` together with a new
-`modelVersion` in `gitops/envs/production.yaml` and commit. The new pod answers
-every `/predict` with a 500, the analysis sees an error rate of 1.0 and Argo
-Rollouts aborts without anybody touching it. Undo with `git revert`.
+To see the automatic abort on purpose, set `faultRate` together with a new
+`modelVersion` in `gitops/envs/production.yaml` and commit. `0.5` is what was
+really used and is enough: half of the new pod's answers are 500, which is ten
+times the limit. `1` works as well. Send traffic while it runs, or the analysis
+has nothing to measure and passes. Undo with `git revert`. The whole run, with
+the numbers and the screenshots, is in
+[`docs/demo-trace.md`](docs/demo-trace.md#7-the-canary-that-aborted-by-itself).
 
 ## Rollback
 
@@ -965,6 +1019,14 @@ start of a working session and destroyed at the end of it.
 | S3, ECR, Lambda, Step Functions, CloudWatch | cents per month |
 | **Total** | **about $0.28**, roughly $6.70 a day |
 
+The *Cost* dashboard shows the part of this that OpenCost can see. Measured on
+the running cluster: **$0.135 per hour** for the nodes and the EBS volumes,
+$3.25 a day, $98.83 a month, with `monitoring` the most expensive namespace at
+$0.0195 per hour. OpenCost only prices what runs **inside** the cluster, so the
+EKS control plane and the NAT gateway are not in that number — which is why the
+table above says $0.28 and the dashboard says $0.135. The dashboard still
+answers the question the AWS bill never does: which namespace is expensive.
+
 The cluster is deliberately small, and the resource requests were measured
 rather than guessed. Per namespace, read out of the rendered manifests:
 
@@ -978,13 +1040,23 @@ rather than guessed. Per namespace, read out of the rendered manifests:
 | short lived: drift job, registry hook, canary surge pod | up to 350m | up to 704Mi | up to 3 |
 | **total of the above** | **2130m** | **8320Mi** | **33** |
 
-The two `t4g.large` nodes give about **3.8 CPUs and 12 GiB** to pods.
-`kube-system` takes roughly another 0.7 CPU for the EKS add-ons (CoreDNS,
-kube-proxy, VPC CNI, the EBS CSI driver, the Pod Identity agent) — that one row
-is an estimate from the add-on defaults, not a measurement.
+The two `t4g.large` nodes report **1930m CPU and about 6.9 GiB allocatable
+each**, so roughly 3.8 CPUs and 13 GiB for pods in total.
 
-> `TODO(after deploy): replace the kube-system estimate with the real numbers
-> from "kubectl describe node" and "kubectl top nodes".`
+`kubectl describe node` on the running cluster, with 47 pods scheduled:
+
+| Node | CPU requested | Memory requested |
+|---|---|---|
+| node 1 | 1300m (67 %) | 4822Mi (68 %) |
+| node 2 | 1160m (60 %) | 3606Mi (51 %) |
+
+`kube-system` is 12 of those pods and asks for **680m CPU and 812Mi** — CoreDNS,
+kube-proxy, the VPC CNI, the EBS CSI driver and the Pod Identity agent. That
+row used to be an estimate; these are the real numbers.
+
+Two thirds full is the right place to be here: it leaves room for the canary
+surge pod, the drift Job and the registry hook Job without paying for a third
+node.
 
 This is why the inference CPU request is `50m` in both `envs/` files and not
 the `100m` of the chart default: at `100m` the two inference namespaces alone
@@ -1023,6 +1095,7 @@ The Terraform state bucket is kept on purpose and is not managed by Terraform.
 |---|---|
 | [`RUNBOOK.md`](RUNBOOK.md) | rolling out a model, rolling back, and twelve incidents with exact commands |
 | [`ADR.md`](ADR.md) | why canary, what it costs, what would be done differently |
+| [`docs/demo-trace.md`](docs/demo-trace.md) | the whole demo on the real cluster, with the measured numbers |
 | [`docs/threat-model.md`](docs/threat-model.md) | five threats, the control for each, the residual risk |
 | [`docs/escalation-policy.md`](docs/escalation-policy.md) | which alert goes to whom, and how fast |
 | [`terraform/README.md`](terraform/README.md) | the two stacks, the modules, apply and destroy |

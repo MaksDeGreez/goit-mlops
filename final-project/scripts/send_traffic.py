@@ -234,6 +234,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0,
         help="clients sending at the same time; 0 means 1, or 8 in burst mode",
     )
+    parser.add_argument(
+        "--data",
+        default=str(DATA_PATH),
+        help="CSV with the feature rows; the default is the dataset of this repository",
+    )
     parser.add_argument("--save-csv", help="write the accepted rows to this CSV file")
     parser.add_argument(
         "--expect",
@@ -251,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         payloads: list[object] = invalid_payloads(args.count, rng)
         rows: list[dict] = []
     else:
-        rows = load_rows(DATA_PATH)
+        rows = load_rows(Path(args.data))
         maker = drifted_rows if args.mode == "drift" else normal_rows
         rows = maker(rows, args.count, rng)
         payloads = list(rows)

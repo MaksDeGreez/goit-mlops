@@ -17,6 +17,7 @@ SERVICE_ROOT = Path(__file__).resolve().parents[1]
 
 AUDIT_KEYS = {
     "ts",
+    "level",
     "event",
     "service",
     "action",

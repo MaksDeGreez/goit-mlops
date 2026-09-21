@@ -618,7 +618,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{app=\"registry-ops\"} | json | event=\"model_registry_audit\"",
+          "expr": "{app=\"registry-ops\"} | json | event=\"model_registry_audit\" | label_format detected_level=`{{ if eq .result \"success\" }}info{{ else }}error{{ end }}`",
           "editorMode": "code",
           "queryType": "range"
         }
@@ -635,7 +635,7 @@
         "dedupStrategy": "none",
         "prettifyLogMessage": false
       },
-      "description": "One line for every promotion, rollback, archive or delete, written by registry-ops.",
+      "description": "Every change of the model registry, newest first. The level is taken from the result field: a line is only an error when the action failed.",
       "id": 10
     },
     {

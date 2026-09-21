@@ -148,7 +148,7 @@ kubectl -n production logs job/inference-registry-sync
 The hook prints one JSON audit line. In Grafana → Explore → Loki:
 
 ```logql
-{namespace="production", app="registry-ops"} | json | event="model_registry_audit"
+{app="registry-ops"} | json | event="model_registry_audit"
 ```
 
 It names the action, the new version, the version that was archived, the actor

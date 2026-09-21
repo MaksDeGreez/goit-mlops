@@ -518,7 +518,7 @@ Useful LogQL:
 
 ```logql
 {namespace="production", app="inference"} | json | level="error"
-{namespace="production", app="registry-ops"} | json | event="model_registry_audit"
+{app="registry-ops"} | json | event="model_registry_audit"
 {namespace="production", app="inference"} | json | event="prediction"
 ```
 

@@ -87,7 +87,7 @@ is worth the small oddity of a table on stderr: in the cluster this tool is a Jo
 collected by Loki, and there every line has to parse as JSON.
 
 ```json
-{"ts": "2026-09-20T20:14:52.317Z", "event": "model_registry_audit", "service": "registry-ops",
+{"ts": "2026-09-20T20:14:52.317Z", "level": "info", "event": "model_registry_audit", "service": "registry-ops",
  "action": "promote", "model": "california-housing", "version": "3", "from_stage": "Staging",
  "to_stage": "Production", "previous_production_version": "2", "actor": "maks",
  "git_sha": "1f4c9ab", "result": "success", "error": null}

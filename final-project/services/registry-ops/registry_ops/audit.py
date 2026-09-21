@@ -45,8 +45,12 @@ def audit_line(
     points at once the action is done, that is the version a rollback would
     bring back.
     """
+    # "level" is here for the log tools. Without it Loki guesses the level from
+    # the text, finds the key "error" in every line and marks a successful
+    # promotion as an error.
     return {
         "ts": utc_now_iso(),
+        "level": "info" if result == SUCCESS else "error",
         "event": AUDIT_EVENT,
         "service": SERVICE,
         "action": action,

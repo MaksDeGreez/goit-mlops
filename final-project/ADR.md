@@ -41,6 +41,23 @@ of the release, old and new, and Kubernetes spreads requests over the ready
 endpoints. With 10 replicas, "10 %" is literally one new pod next to nine old
 ones.
 
+### What it did in practice
+
+The decision was tested on the running cluster, three times, with traffic at
+about 10 requests per second.
+
+| Run | Result | Time |
+|---|---|---|
+| promote version 1 | Healthy, 9 good measurements | about 5 minutes |
+| promote version 2, then `git revert` | Healthy both ways, registry followed | about 5 minutes each |
+| promote version 2 with `faultRate: 0.5` | **aborted by itself** after 3 failed measurements (0.548, 0.583, 0.572 against a limit of 0.05) | about 2 minutes |
+
+The number that matters is how much of the traffic ever saw the broken version.
+One canary pod out of eleven, failing half of its requests, showed up as
+**2.08 % of 5xx for the whole service, for about two minutes**. That is the
+cost of the strategy, measured instead of estimated: a Blue-Green switch would
+have put the same broken version on 100 % of the requests.
+
 ### Why canary and not something else
 
 | Option | Why not |
@@ -120,6 +137,30 @@ infrastructure at all.
   every prediction as JSON, so the drift job reads those lines back instead of
   the project keeping a second copy of the features in a database.
 
+## What we learned by running it
+
+Three things only became clear once the system was on AWS and the canary had
+run for real. None of them changes the decision, but all three change how the
+strategy is operated, and they are in the runbook now.
+
+- **The blind spot is real, and easy to walk into.** A port-forward connects to
+  one pod, so the first attempt to "send traffic during a canary" put every
+  request on a single pod and the analysis measured nothing useful. Traffic for
+  a canary has to come from inside the cluster. A rollout at a quiet moment
+  still passes on no data, and that is accepted on purpose — but it means the
+  guard is only as good as the traffic, and a demo without traffic proves
+  nothing.
+- **An abort is not the end of the story.** After the rollout aborted, Argo CD
+  kept retrying the failed sync (five attempts, five to eight minutes) before
+  it even looked at the `git revert` that was already pushed. Production was
+  safe the whole time, but "revert and it is fixed" is not instant. Pressing
+  **Terminate** on the running operation skips the wait.
+- **The replica split is approximate, and the numbers show it.** At the 10 %
+  step the new pod did not get exactly a tenth of the requests, and the error
+  share the dashboard reported (2.08 %) is close to, but not the same as, the
+  arithmetic 5 %. Good enough to decide "abort", not good enough to compare two
+  models on quality.
+
 ## What would be done differently with more time
 
 - A real traffic router — Gateway API once the Argo Rollouts plugin is stable —
@@ -146,6 +187,8 @@ infrastructure at all.
 ## Where to read more
 
 - Deployment, namespaces, promotion and rollback: [`README.md`](README.md)
+- The three runs above, with the screenshots:
+  [`docs/demo-trace.md`](docs/demo-trace.md)
 - What to do when something breaks: [`RUNBOOK.md`](RUNBOOK.md)
 - Attack surface and controls: [`docs/threat-model.md`](docs/threat-model.md)
 - The chart that implements all of this:

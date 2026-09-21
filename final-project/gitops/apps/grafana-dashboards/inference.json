@@ -25,11 +25,11 @@
           "uid": "prometheus"
         },
         "query": {
-          "query": "label_values(inference_requests_total, namespace)",
+          "query": "label_values(inference_model_info, namespace)",
           "refId": "vars"
         },
-        "definition": "label_values(inference_requests_total, namespace)",
-        "refresh": 1,
+        "definition": "label_values(inference_model_info, namespace)",
+        "refresh": 2,
         "sort": 1,
         "includeAll": false,
         "multi": false,

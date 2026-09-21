@@ -13,6 +13,7 @@ That is on purpose: the project is about the platform, not about the model.
 
 ## Contents
 
+- [Demo trace](#demo-trace)
 - [Architecture](#architecture)
 - [Repository structure](#repository-structure)
 - [Requirements](#requirements)
@@ -30,6 +31,68 @@ That is on purpose: the project is about the platform, not about the model.
 - [Cost](#cost)
 - [Teardown](#teardown)
 - [Documents](#documents)
+
+## Demo trace
+
+The system really ran on AWS on 21 September 2026: cluster `mlops-final` in
+`us-east-1`, Kubernetes 1.35.8, two `t4g.large` arm64 nodes. This section shows
+the four states the assignment asks for. The whole story, in the order it
+happened, is in [`docs/demo-trace.md`](docs/demo-trace.md).
+
+**1. Every Argo CD Application Synced and Healthy.** One root Application and
+fourteen children, in four sync waves:
+
+![all fifteen Applications healthy in the Argo CD UI](docs/screenshots/20-argocd-ui-all-healthy.png)
+
+![the same list from the command line](docs/screenshots/18-argocd-applications-cli.png)
+
+**2. The MLflow Model Registry with a model in Production.** With the *New
+model registry UI* switch turned off, MLflow shows the stages the assignment
+words the workflow in — here right after version 2 was promoted and version 1
+archived:
+
+![version 2 Production, version 1 Archived](docs/screenshots/32-mlflow-v2-production-v1-archived.png)
+
+The same registry with the aliases and the tags that make a version traceable:
+the Git commit, the dataset hash, the model checksum, the three metrics, the
+MLflow run id, and `promoted_at` / `promoted_by` written by the promotion hook:
+
+![version 1 under the alias production, with all its tags](docs/screenshots/29-mlflow-v1-production.png)
+
+**3. A Grafana dashboard with live monitoring.** Request rate, error share, p95
+latency, pods with a model loaded, everything split by model version, pod CPU
+and memory, and the newest log lines from Loki:
+
+![the inference dashboard](docs/screenshots/23-grafana-inference-dashboard.png)
+
+**4. A successful CI pipeline run.** All ten jobs of `final-project-ci`,
+including the image push to ECR through OIDC, and the training pipeline started
+from the Actions tab:
+
+![push-images green with the pushed tag](docs/screenshots/15-ci-push-images-green.png)
+
+![a training run started from the Actions tab](docs/screenshots/16-ci-training-run-green.png)
+
+### The rest of the story
+
+| Step | What it shows | Screenshots |
+|---|---|---|
+| [The cluster is up](docs/demo-trace.md#1-the-cluster-is-up) | 75 + 31 Terraform resources, 110 pods per node, 47 pods running | 17, 19 |
+| [Argo CD deploys everything](docs/demo-trace.md#2-argo-cd-deploys-everything) | fifteen Applications, four waves, the two fixes the first deploy needed | 18, 20 |
+| [Training through Step Functions](docs/demo-trace.md#3-a-training-run-through-step-functions) | GitHub → OIDC → Step Functions → Kubernetes Job → MLflow, 54 s | 22, 21 |
+| [The first promotion](docs/demo-trace.md#4-the-first-promotion) | canary 10 → 50 → 100 %, nine good measurements, the audit line | 25, 26, 27, 28, 29 |
+| [Version 2, with traffic](docs/demo-trace.md#5-version-2-with-traffic) | both versions serving, archive + promote in one hook run | 30, 31, 33, 32 |
+| [Rollback with git revert](docs/demo-trace.md#6-rollback-with-git-revert) | one command, the registry follows | 34, 35 |
+| [The canary that aborted by itself](docs/demo-trace.md#7-the-canary-that-aborted-by-itself) | bonus G2: 0.548 against a limit of 0.05, aborted in two minutes | 36, 37, 38, 39 |
+| [Live monitoring](docs/demo-trace.md#8-live-monitoring) | the inference dashboard | 23 |
+| [Drift and the alert](docs/demo-trace.md#9-drift-and-the-alert-that-fired) | PSI per feature, share 0.375, the rule Firing | 40, 41, 42 |
+| [Security proofs](docs/demo-trace.md#10-security-rbac-bad-input-rate-limit-audit-trail) | 32 of 32 RBAC answers, 400, 429, the audit trail | 43, 44, 45 |
+| [What it costs](docs/demo-trace.md#11-what-it-costs) | bonus G4: $0.135 per hour inside the cluster | 46 |
+
+There is no public link to the running system: nothing in this project is
+exposed to the internet, on purpose. See
+[Access to the user interfaces](#access-to-the-user-interfaces) for the
+`kubectl port-forward` commands that open each one.
 
 ## Architecture
 

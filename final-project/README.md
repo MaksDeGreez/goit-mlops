@@ -331,6 +331,8 @@ checked model never takes traffic. It is fixed by the next step.
 
 **Actions → final-project-train → Run workflow.** Leave every input empty.
 
+![a training run started from the Actions tab](docs/screenshots/16-ci-training-run-green.png)
+
 The same rule applies here: the button needs the workflow file on the default
 branch. Pick `final-project` in the branch list of the dialog, so the workflow
 and the code of that branch are used. Without the button, the same run can be

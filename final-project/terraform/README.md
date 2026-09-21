@@ -1,7 +1,7 @@
 # Terraform
 
 Two stacks. `infra` builds the AWS side, `platform` prepares the cluster and
-the training pipeline. Everything that runs **in** the cluster is described in
+the training pipeline. Everything that runs in the cluster is described in
 `final-project/gitops/` and is deployed by Argo CD, not by Terraform.
 
 ```
@@ -21,7 +21,7 @@ stacks/
 
 State is in the S3 bucket `mlops-tfstate-goit-447ede` under
 `final-project/infra/` and `final-project/platform/`. The bucket was created
-once by hand and is **not** managed by Terraform, so no destroy can delete the
+once by hand and is not managed by Terraform, so no destroy can delete the
 state it holds. Locking is `use_lockfile = true`, so there is no DynamoDB
 table. The platform stack reads the outputs of the infra stack with
 `terraform_remote_state`.
@@ -46,9 +46,9 @@ terraform apply                       # about 5 minutes
 
 Then look at `terraform output` in both stacks. The useful ones are
 `update_kubeconfig_command`, `ecr_repository_urls`, `ci_role_arn`,
-`state_machine_arn`, `mlflow_artifact_bucket` and the port-forward and password
-commands. No password is printed by Terraform: the outputs give you the
-`kubectl` command that reads the secret when you need it.
+`state_machine_arn`, `mlflow_artifact_bucket`, and the port-forward and
+password commands. No password is printed by Terraform. The outputs give you
+the `kubectl` command that reads the secret when you need it.
 
 After `platform` is applied, Argo CD syncs the root Application and the rest of
 the platform appears over the next few minutes.
@@ -60,7 +60,7 @@ creates. If the controller is removed first, nothing is left to process those
 finalizers and the namespace hangs in `Terminating` for ever.
 
 Deleting the root Application removes every child Application and every
-workload, but **not** the two volume claims the StatefulSets made for
+workload. It does not remove the two volume claims the StatefulSets made for
 themselves: `data-postgres-0` in `mlops-system` and `storage-loki-0` in
 `monitoring`. Argo CD did not create them, so it does not prune them, and each
 one holds an EBS volume that keeps costing money. Delete them by hand.
@@ -92,7 +92,7 @@ terraform destroy
 
 Afterwards check that nothing is left. A load balancer or a volume created
 inside the cluster is not in the Terraform state, so a destroy does not remove
-it, which is the reason steps 1 to 4 come first.
+it. That is the reason steps 1 to 4 come first.
 
 ```bash
 export AWS_PROFILE=goit
@@ -113,7 +113,7 @@ kubectl patch application <name> -n argocd --type=merge -p '{"metadata":{"finali
 
 ## Cost
 
-Roughly **$0.28 per hour**, about $6.70 per day:
+Roughly $0.28 per hour, about $6.70 per day:
 
 | Item | Per hour |
 |---|---|
@@ -133,6 +133,6 @@ cd stacks/infra    && terraform init -backend=false && terraform validate
 cd ../platform     && terraform init -backend=false && terraform validate
 ```
 
-`terraform plan` cannot be used to check the platform stack before the infra
-stack is applied: the cluster does not exist yet, so the Kubernetes and Helm
-providers have nothing to connect to.
+`terraform plan` cannot check the platform stack before the infra stack is
+applied. The cluster does not exist yet, so the Kubernetes and Helm providers
+have nothing to connect to.

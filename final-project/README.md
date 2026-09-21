@@ -1,8 +1,8 @@
 # Final project — an MLOps platform on AWS
 
-An end-to-end MLOps platform on AWS EKS. Terraform builds the AWS side, Argo CD
-deploys everything that runs in the cluster, a self-hosted MLflow server keeps
-the experiments and the model versions, and a FastAPI service serves one
+An end-to-end MLOps platform on AWS EKS. Terraform builds the AWS side and Argo
+CD deploys everything that runs in the cluster. A self-hosted MLflow server
+keeps the experiments and the model versions, and a FastAPI service serves one
 version of the model. New versions go out as canary releases with Argo
 Rollouts, and a bad one rolls itself back. Prometheus, Grafana and Loki collect
 metrics and logs, Evidently checks the live data for drift, and GitHub Actions
@@ -48,8 +48,8 @@ fourteen children, in four sync waves:
 
 **2. The MLflow Model Registry with a model in Production.** With the *New
 model registry UI* switch turned off, MLflow shows the stages the assignment
-words the workflow in — here right after version 2 was promoted and version 1
-archived:
+words the workflow in. This is the moment right after version 2 was promoted
+and version 1 archived:
 
 ![version 2 Production, version 1 Archived](docs/screenshots/32-mlflow-v2-production-v1-archived.png)
 
@@ -154,7 +154,7 @@ flowchart TB
     prom -- "5xx of the new version" --> iprod
 ```
 
-Two things are worth reading twice:
+Two points matter more than the rest:
 
 - **Terraform stops at Argo CD.** It creates AWS resources, the namespaces and
   the two generated passwords, then installs Argo CD and one root Application.
@@ -207,8 +207,8 @@ repository, because GitHub only reads workflows from there:
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `final-project-ci.yml` | push and pull request on `final-project` | lint, tests, Terraform, GitOps, image build and scan, secret scan, image push |
-| `final-project-train.yml` | manual | starts the training pipeline and waits for the result |
+| `final-project-ci.yml` | push and pull request on `final-project` or `main` that touch `final-project/`, plus **Run workflow** | lint, tests, Terraform, GitOps, image build and scan, secret scan, image push |
+| `final-project-train.yml` | **Run workflow** only | starts the training pipeline and waits for the result |
 
 ## Requirements
 
@@ -309,15 +309,16 @@ variable is visible in the log, which makes a failing run much easier to read.
 | `AWS_REGION` | `us-east-1` | |
 | `FINAL_STATE_MACHINE_ARN` | filled in at step 5 | |
 
-The names start with `FINAL_` on purpose: this repository also holds the homework of lesson 10,
-which uses the plain names `AWS_ROLE_ARN` and `STATE_MACHINE_ARN` for a role that no longer exists.
-Sharing them would make this pipeline try to assume that old role.
+The names start with `FINAL_` on purpose. This repository also holds the
+homework of lesson 10, which uses the plain names `AWS_ROLE_ARN` and
+`STATE_MACHINE_ARN` for a role that no longer exists. Sharing them would make
+this pipeline try to assume that old role.
 
 With `FINAL_AWS_ROLE_ARN` set, the `push-images` job stops being skipped. Run it
 once: **Actions → final-project-ci → Run workflow** on branch `final-project`.
-It builds the four images and pushes them to ECR tagged with the **full 40
-character commit SHA**, and prints the result in the job summary without the
-registry host (the host contains the account id and this repository is public).
+It builds the four images and pushes them to ECR, tagged with the full 40
+character commit SHA. The job summary shows the result without the registry
+host, because that host contains the account id and this repository is public.
 
 GitHub only shows the **Run workflow** button for workflows that exist on the
 default branch. If the button is missing (the workflow only lives on another
@@ -354,9 +355,9 @@ step 3, which exist.
 
 > **Change `registryOpsImageTag` together with something else.** That key is
 > only read by the `PostSync` hook Job, and a hook Job is not part of the
-> desired state Argo CD compares against the cluster. On its own it therefore
-> leaves the Application `Synced`, no sync runs, and the hook keeps using the
-> old image until the next real change. Here it is changed in the same commit
+> desired state Argo CD compares. On its own it leaves the Application
+> `Synced`, so no sync runs and the hook keeps the old image until the next
+> real change. Here it is changed in the same commit
 > as `imageTag`, so there is nothing to do. If it ever has to change alone,
 > press **Sync** on `inference-production` in the Argo CD UI.
 
@@ -368,10 +369,10 @@ terraform init
 terraform apply
 ```
 
-**31 resources, about six minutes.** This creates the five namespaces, the two
-generated secrets, the MLflow S3 bucket and its Pod Identity role, the two
-Lambdas and the Step Functions state machine, and finally Argo CD with one root
-Application.
+**31 resources, about six minutes.** It creates the five namespaces, the two
+generated secrets, the MLflow S3 bucket and its Pod Identity role, and the two
+Lambdas with the Step Functions state machine. Argo CD and the root Application
+come last.
 
 Now fill in the third repository variable:
 
@@ -414,7 +415,7 @@ checked model never takes traffic. It is fixed by the next step.
 
 **Also expected, and harmless:** two restart counters after the very first
 sync. The twelve inference pods show `RESTARTS 1` because they started before
-MLflow was reachable and failed the startup probe once; `opencost` shows
+MLflow was reachable and failed the startup probe once. `opencost` shows
 `RESTARTS 2` because it waits for Prometheus, which is in a later wave. Both
 settle by themselves and neither needs an action.
 
@@ -424,8 +425,9 @@ settle by themselves and neither needs an action.
 
 ![a training run started from the Actions tab](docs/screenshots/16-ci-training-run-green.png)
 
-A second run with `max_iter` set to 50 gives a smaller model, so version 2 really differs from
-version 1 (different checksum, slightly worse metrics):
+A second run with `max_iter` set to 50 gives a smaller model. So version 2
+really differs from version 1: a different checksum and slightly worse
+metrics.
 
 ![the second training run](docs/screenshots/24-ci-training-run-v2.png)
 
@@ -435,10 +437,10 @@ and the code of that branch are used. Without the button, the same run can be
 started from a terminal with the command that `terraform output
 start_training_command` prints in `stacks/platform`.
 
-The workflow starts the state machine, which validates the input, runs a
-Kubernetes Job in `mlops-system` with the training image, waits for it, reads
-the `training_finished` line out of the pod's logs and returns it. The job
-summary then shows the version, `rmse`, `mae`, `r2`, `run_id`,
+The workflow starts the state machine. The state machine validates the input,
+runs a Kubernetes Job in `mlops-system` with the training image and waits for
+it. It then reads the `training_finished` line out of the pod's logs and
+returns it. The job summary shows the version, `rmse`, `mae`, `r2`, `run_id`,
 `dataset_sha256` and `model_sha256`.
 
 Measured: the Step Functions execution took **54 seconds** and the whole
@@ -523,25 +525,25 @@ measured numbers, is in [`docs/demo-trace.md`](docs/demo-trace.md).
 
 One cluster, five namespaces. All of them are created by Terraform, never by
 Argo CD, because Terraform also writes the two generated secrets into them.
-Every Application therefore syncs with `CreateNamespace=false`.
+So every Application syncs with `CreateNamespace=false`.
 
 | Namespace | What lives there | Who may change it |
 |---|---|---|
-| `argocd` | Argo CD server, controller, repo server, Redis; the root Application and its fourteen children | nobody by hand — it is Terraform and Git |
+| `argocd` | Argo CD server, controller, repo server, Redis; the root Application and its fourteen children | nobody by hand: it is Terraform and Git |
 | `mlops-system` | MLflow, PostgreSQL, the Argo Rollouts controller, the training Jobs started by Step Functions, the drift CronJob | `mlops-engineers`: read and port-forward |
 | `staging` | one inference release that follows the alias `staging` | `mlops-engineers`: full access, including Secrets and `exec` |
-| `production` | one inference release pinned to a version and a checksum, plus the registry-sync hook Job | `mlops-engineers`: read, port-forward, and abort a canary — no writes |
+| `production` | one inference release pinned to a version and a checksum, plus the registry-sync hook Job | `mlops-engineers`: read, port-forward, and abort a canary. No writes. |
 | `monitoring` | Prometheus, Grafana, Loki, Alloy, PushGateway, OpenCost, the Grafana admin secret | `mlops-engineers`: read and port-forward |
 
 The boundary between staging and production is the point of the split:
-**staging follows an alias and changes by itself; production only changes
-through a commit.** The RBAC in [`rbac/`](rbac/README.md) enforces it — an
+staging follows an alias and changes by itself, and production only changes
+through a commit. The RBAC in [`rbac/`](rbac/README.md) enforces that. An
 engineer who could `patch` the production Rollout could change what runs
 without a commit, so that right is not granted.
 
 ## Access to the user interfaces
 
-**Nothing in this project is public**, and that is a decision, not a gap:
+Nothing in this project is public, and that is a decision, not a gap:
 
 - There is no attack surface on the internet. MLflow and the Prometheus UI have
   no login at all, so publishing them would mean putting authentication in
@@ -578,9 +580,9 @@ No password is ever printed by `terraform output`. The outputs give the
 lands in a terminal scrollback or in a screenshot by accident.
 
 MLflow is forwarded to 5001 because macOS uses 5000 for AirPlay; `5000:5000`
-works everywhere else. MLflow 3 checks the `Host` header including the port, so
-any port used here has to be covered by `serverAllowedHosts` in
-`gitops/apps/mlflow/values.yaml` — it allows `localhost:*` and `127.0.0.1:*`.
+works everywhere else. MLflow 3 checks the `Host` header including the port. So any port used here has
+to be covered by `serverAllowedHosts` in `gitops/apps/mlflow/values.yaml`,
+which allows `localhost:*` and `127.0.0.1:*`.
 
 > A port-forward binds to one **pod**, not to the Service. Restarting that pod
 > kills the forward without a message. It is also the reason traffic for a
@@ -610,12 +612,12 @@ Pod CPU and memory come from cAdvisor and kube-state-metrics, which the
 Prometheus chart installs. The drift job pushes `data_drift_share`,
 `data_drift_score{column}`, `data_drift_samples`,
 `data_drift_columns` and `data_drift_last_run_timestamp_seconds` to the
-PushGateway, which Prometheus scrapes with `honor_labels: true` — without that
-the column name on each score would be overwritten.
+PushGateway. Prometheus scrapes it with `honor_labels: true`; without that the
+column name on each score would be overwritten.
 
 ### Logs
 
-Every service writes **one JSON object per line** to stdout. Grafana Alloy runs
+Every service writes one JSON object per line to stdout. Grafana Alloy runs
 as a DaemonSet, reads the pods on its own node and sends the lines to Loki with
 four labels: `namespace`, `app`, `pod`, `container`.
 
@@ -645,12 +647,12 @@ Loki, so nothing has to store a second copy of them.
 
 Three, provisioned from Git as ConfigMaps built by kustomize
 (`gitops/apps/grafana-dashboards/`) and picked up by the Grafana sidecar.
-`allowUiUpdates: false` — a change made in the browser is thrown away on the
-next restart, which is the point.
+`allowUiUpdates: false` is set on purpose: a change made in the browser is
+thrown away on the next restart.
 
 | Dashboard | Panels |
 |---|---|
-| **Inference** | request rate, p50/p95 latency, error rate — all split by `model_version` and namespace — pod CPU and memory, rate-limited and validation-error counts, and a live log panel from Loki |
+| **Inference** | request rate, p50/p95 latency and error rate, all split by `model_version` and namespace; pod CPU and memory; rate-limited and validation-error counts; a live log panel from Loki |
 | **Model quality** | drifted share, PSI per column, sample count, time of the last run, and the registry audit lines from Loki |
 | **Cost** | the OpenCost metrics: what the cluster and each namespace cost per hour |
 
@@ -724,8 +726,8 @@ train (workflow)  →  version N, alias staging  →  staging pods load it in <6
 The hook is `PostSync` and not `PreSync` on purpose. Argo CD runs `PostSync`
 hooks only once the Application is Healthy, and for a `Rollout` that means the
 canary finished. So the registry says "Production" when the version really
-serves all the traffic — and if the canary was aborted the hook never runs and
-the registry keeps naming the old version, which is the truth.
+serves all the traffic. If the canary was aborted the hook never runs, so the
+registry keeps naming the old version, which is the truth.
 
 Full instructions with the commands: [`RUNBOOK.md`](RUNBOOK.md#roll-out-a-new-model-version).
 
@@ -748,8 +750,8 @@ after three measurements of 0.548, 0.583 and 0.572 against the limit of 0.05.
 Because only one pod of eleven served the bad version, the whole service never
 showed more than **2.08 % of 5xx**, for about two minutes.
 
-Staging uses the same chart with `canaryEnabled: false` — a plain rolling
-update, because a new model should appear there at once.
+Staging uses the same chart with `canaryEnabled: false`. That is a plain
+rolling update, because a new model should appear there at once.
 
 Why canary and not Blue-Green or A/B, what it costs, and what would be done
 with more time: [`ADR.md`](ADR.md).
@@ -771,9 +773,9 @@ git revert <the promotion commit>
 git push
 ```
 
-The values file goes back to the previous `modelVersion` and `modelSha256`,
-Argo CD syncs, Argo Rollouts rolls the pods the same careful way, and the
-`PostSync` hook moves the registry alias and stage back and archives the
+The values file goes back to the previous `modelVersion` and `modelSha256`, and
+Argo CD syncs. Argo Rollouts rolls the pods the same careful way. The
+`PostSync` hook then moves the registry alias and stage back, and archives the
 version that was live.
 
 For aborting a canary by hand, and for the manual `registry-ops` escape hatch
@@ -783,18 +785,21 @@ when the hook itself failed, see [`RUNBOOK.md`](RUNBOOK.md#roll-back).
 
 | Requirement | How it is done | Where |
 |---|---|---|
-| **C1** Input validation | Pydantic v2, `extra="forbid"`, a realistic range per feature; a `RequestValidationError` handler turns 422 into **400** with field names only — no stack trace, no echo of the input | `services/inference/inference/schemas.py`, `app.py` |
+| **C1** Input validation | Pydantic v2, `extra="forbid"`, a realistic range per feature; a `RequestValidationError` handler turns 422 into 400 with field names only, no stack trace and no echo of the input | `services/inference/inference/schemas.py`, `app.py` |
 | **C2** Rate limiting | `slowapi` on `/predict` only, `RATE_LIMIT` (default `20/second`) per client address, 429 with a clean JSON body; `/metrics`, `/health/*`, `/info` exempt | `services/inference/inference/app.py` |
-| **C3** RBAC | three Kubernetes groups — `mlops-engineers`, `viewers`, `stepfunctions-runners` — bound per namespace, mapped from IAM roles by EKS access entries. No role can read a Secret or use `pods/exec` outside staging | [`rbac/`](rbac/README.md), `terraform/modules/eks/` |
+| **C3** RBAC | three Kubernetes groups (`mlops-engineers`, `viewers`, `stepfunctions-runners`) bound per namespace and mapped from IAM roles by EKS access entries. No role can read a Secret or use `pods/exec` outside staging | [`rbac/`](rbac/README.md), `terraform/modules/eks/` |
 | **C4** Immutable artifacts | training tags each version with `model_sha256`; inference downloads, hashes and compares **before** unpickling, and stays at 503 on a mismatch; production pins the same hash in Git; the S3 bucket is versioned | `services/*/model_hash.py`, `gitops/envs/production.yaml`, `terraform/modules/mlflow/` |
 | **C5** Audit logging | every registry change prints one `event=model_registry_audit` JSON line with action, version, both stages, actor and commit; Alloy ships it to Loki and a dashboard panel shows it | `services/registry-ops/registry_ops/audit.py` |
 | **C6** Threat model | five threats, the control for each and the residual risk | [`docs/threat-model.md`](docs/threat-model.md) |
 
-Beyond the required list: no static AWS credentials anywhere (GitHub OIDC and
-EKS Pod Identity), both platform passwords generated by Terraform and never in
-Git, `gitleaks` in the pre-commit hooks and as a full scan in CI, Trivy on
-every image, ECR scan on push with immutable tags, and every container non-root
-with a read-only root filesystem and all capabilities dropped.
+Beyond the required list:
+
+- no static AWS credentials anywhere, only GitHub OIDC and EKS Pod Identity;
+- both platform passwords generated by Terraform and never written into Git;
+- `gitleaks` in the pre-commit hooks and as a full scan in CI;
+- Trivy on every image, and an ECR scan on push with immutable tags;
+- every container non-root, with a read-only root filesystem and all
+  capabilities dropped.
 
 ## Tests and CI
 
@@ -816,8 +821,8 @@ cd services/inference && uv sync --locked && uv run pytest
 
 ### The pipeline
 
-`.github/workflows/final-project-ci.yml`, on `ubuntu-24.04-arm` — free on
-public repositories and the same architecture as the cluster.
+`.github/workflows/final-project-ci.yml`, on `ubuntu-24.04-arm`. Those runners
+are free on public repositories and have the same architecture as the cluster.
 
 | Job | What it does |
 |---|---|
@@ -827,7 +832,7 @@ public repositories and the same architecture as the cluster.
 | `gitops` | `scripts/validate_gitops.sh`: renders every chart and checks it with kubeconform |
 | `build-and-scan` | builds each image, checks it does not run as root, Trivy: HIGH printed, CRITICAL fails |
 | `secret-scan` | a full gitleaks scan of `final-project/` and the workflow files |
-| `push-images` | pushes the four images to ECR, tagged with the commit SHA — skipped until `FINAL_AWS_ROLE_ARN` is set |
+| `push-images` | pushes the four images to ECR, tagged with the commit SHA. Skipped until `FINAL_AWS_ROLE_ARN` is set. |
 
 Only `push-images` touches AWS, and it uses OIDC: no access key is stored
 anywhere. It skips an image whose tag is already in ECR, because ECR tags are
@@ -837,7 +842,8 @@ immutable and a re-run of the same commit must not fail.
 
 `push-images` is skipped in this run because the AWS side did not exist yet.
 
-With `FINAL_AWS_ROLE_ARN` set, the last job pushes the four images to ECR through OIDC:
+With `FINAL_AWS_ROLE_ARN` set, the last job pushes the four images to ECR
+through OIDC:
 
 ![push-images green with the pushed tag](docs/screenshots/15-ci-push-images-green.png)
 
@@ -850,10 +856,10 @@ final-project/scripts/validate_terraform.sh   # needs terraform only
 final-project/scripts/validate_gitops.sh      # needs helm, yq, kustomize, kubeconform
 ```
 
-`validate_gitops.sh` renders the app-of-apps chart, then reads the list of
-charts, versions, value files and parameters **out of the rendered
-Applications** — so it checks exactly what Argo CD would deploy and no version
-is written down twice. It also checks that every Helm parameter an Application
+`validate_gitops.sh` renders the app-of-apps chart first. It then reads the
+list of charts, versions, value files and parameters out of the rendered
+Applications. So it checks exactly what Argo CD would deploy, and no version is
+written down twice. It also checks that every Helm parameter an Application
 passes is really a key of the chart it passes it to. It ends with a table of
 127 resources across 16 components.
 
@@ -864,9 +870,9 @@ passes is really a key of the chart it passes it to. It ends with a table of
 ### GitLab
 
 `final-project/.gitlab-ci.yml` is the same pipeline written for GitLab, because
-the assignment asks for GitLab CI and this project is on GitHub. The `lint`,
-`terraform`, `gitops`, `tests` and `secret-scan` jobs were really run with
-[gitlab-ci-local](https://github.com/firecow/gitlab-ci-local):
+the assignment asks for GitLab CI and this project is on GitHub. The
+`pre-commit`, `terraform`, `gitops`, `tests` and `secret-scan` jobs were really
+run with [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local):
 
 ```bash
 gitlab-ci-local --file final-project/.gitlab-ci.yml gitops
@@ -901,8 +907,8 @@ docker compose up -d --wait
 
 Both API containers start before any model exists. They stay `not ready` (503
 on `/health/ready`), keep asking the registry every ten seconds and start
-serving as soon as the alias they follow points at a version — exactly what
-happens in the cluster at step 6.
+serving as soon as the alias they follow points at a version. That is exactly
+what happens in the cluster at step 6.
 
 Then run the whole story once:
 
@@ -910,11 +916,12 @@ Then run the whole story once:
 scripts/local_e2e.sh
 ```
 
-It trains two versions, promotes one and then the other, rolls back, shows a
-refused request (400) and a rate limited one (429), starts a throw-away
-container with the wrong checksum to show that it never becomes ready, sends
-normal and then drifted traffic, and lets the drift job compare the two. About
-two and a half minutes, and it can be run as often as you like.
+It trains two versions, promotes one and then the other, and rolls back. It
+shows a refused request (400) and a rate limited one (429). It starts a
+throw-away container with the wrong checksum, to show that such a container
+never becomes ready. Finally it sends normal and then drifted traffic and lets
+the drift job compare the two. About two and a half minutes, and it can be run
+as often as you like.
 
 ```bash
 python3 scripts/send_traffic.py --mode normal  --count 400 --rate 15 --url http://localhost:8001
@@ -1034,10 +1041,10 @@ start of a working session and destroyed at the end of it.
 The *Cost* dashboard shows the part of this that OpenCost can see. Measured on
 the running cluster: **$0.135 per hour** for the nodes and the EBS volumes,
 $3.25 a day, $98.83 a month, with `monitoring` the most expensive namespace at
-$0.0195 per hour. OpenCost only prices what runs **inside** the cluster, so the
-EKS control plane and the NAT gateway are not in that number — which is why the
-table above says $0.28 and the dashboard says $0.135. The dashboard still
-answers the question the AWS bill never does: which namespace is expensive.
+$0.0195 per hour. OpenCost only prices what runs inside the cluster, so the EKS control plane and
+the NAT gateway are not in that number. That is why the table above says $0.28
+and the dashboard says $0.135. The dashboard still answers the question the AWS
+bill never does: which namespace is expensive.
 
 The cluster is deliberately small, and the resource requests were measured
 rather than guessed. Per namespace, read out of the rendered manifests:
@@ -1062,7 +1069,7 @@ each**, so roughly 3.8 CPUs and 13 GiB for pods in total.
 | node 1 | 1300m (67 %) | 4822Mi (68 %) |
 | node 2 | 1160m (60 %) | 3606Mi (51 %) |
 
-`kube-system` is 12 of those pods and asks for **680m CPU and 812Mi** — CoreDNS,
+`kube-system` is 12 of those pods and asks for 680m CPU and 812Mi: CoreDNS,
 kube-proxy, the VPC CNI, the EBS CSI driver and the Pod Identity agent. That
 row used to be an estimate; these are the real numbers.
 
@@ -1072,7 +1079,7 @@ node.
 
 This is why the inference CPU request is `50m` in both `envs/` files and not
 the `100m` of the chart default: at `100m` the two inference namespaces alone
-would ask for 1.3 CPU — a third of the cluster — for pods that answer in about
+would ask for 1.3 CPU, a third of the cluster, for pods that answer in about
 5 ms.
 
 ## Teardown

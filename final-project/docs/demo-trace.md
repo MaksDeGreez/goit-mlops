@@ -357,6 +357,22 @@ control plane ($0.10 per hour) or the NAT gateway ($0.045 per hour). The real
 rate is about $0.28 per hour. The dashboard is still useful: it answers
 "which namespace is expensive", which the AWS bill does not.
 
+## 12. Everything deleted again
+
+After the last screenshot the whole system was removed in the documented order: the root
+Application, then the two volume claims that Argo CD does not remove, then `stacks/platform` and
+`stacks/infra`.
+
+```text
+Destroy complete! Resources: 31 destroyed.    # stacks/platform
+Destroy complete! Resources: 75 destroyed.    # stacks/infra
+```
+
+A check of the account afterwards found nothing left: no cluster, no VPC, no NAT gateway, no
+instance, no disk, no Lambda function, no state machine, no ECR repository, no `mlops-final` IAM
+role. Only the state bucket stays, on purpose. The last lines of all four Terraform runs are in
+[terraform-logs.md](terraform-logs.md). The cluster ran for about 35 hours and cost about 10 USD.
+
 ## What this trace does not show
 
 Three limits, stated on purpose:

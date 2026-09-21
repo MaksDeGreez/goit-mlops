@@ -88,6 +88,7 @@ from the Actions tab:
 | [Drift and the alert](docs/demo-trace.md#9-drift-and-the-alert-that-fired) | PSI per feature, share 0.375, the rule Firing | 40, 41, 42 |
 | [Security proofs](docs/demo-trace.md#10-security-rbac-bad-input-rate-limit-audit-trail) | 32 of 32 RBAC answers, 400, 429, the audit trail | 43, 44, 45 |
 | [What it costs](docs/demo-trace.md#11-what-it-costs) | bonus G4: $0.135 per hour inside the cluster | 46 |
+| [Everything deleted again](docs/demo-trace.md#12-everything-deleted-again) | both `terraform destroy` runs succeeded, the account is empty | [logs](docs/terraform-logs.md) |
 
 There is no public link to the running system: nothing in this project is
 exposed to the internet, on purpose. See

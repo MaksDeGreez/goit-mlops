@@ -38,7 +38,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(node_total_hourly_cost) + sum(pv_hourly_cost * on(persistentvolume) group_left() (kube_persistentvolume_capacity_bytes / 1024 / 1024 / 1024))",
+          "expr": "sum(node_total_hourly_cost) + sum(pv_hourly_cost * on(persistentvolume) group_left() (max by (persistentvolume) (kube_persistentvolume_capacity_bytes) / 1024 / 1024 / 1024))",
           "editorMode": "code",
           "legendFormat": "__auto",
           "range": true,
@@ -77,7 +77,7 @@
         "graphMode": "area",
         "justifyMode": "auto"
       },
-      "description": "Nodes plus disks, from the public AWS price list. The EKS control plane ($0.10 per hour) is not in it, because it is not a Kubernetes object.",
+      "description": "Nodes and disks, from the AWS list prices that OpenCost knows. The EKS control plane (0.10 USD per hour) and the NAT gateway (0.045 USD per hour) are not part of the cluster, so OpenCost cannot see them: add about 0.145 USD per hour for the real bill.",
       "id": 1
     },
     {
@@ -100,7 +100,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(node_total_hourly_cost) + sum(pv_hourly_cost * on(persistentvolume) group_left() (kube_persistentvolume_capacity_bytes / 1024 / 1024 / 1024))) * 24",
+          "expr": "(sum(node_total_hourly_cost) + sum(pv_hourly_cost * on(persistentvolume) group_left() (max by (persistentvolume) (kube_persistentvolume_capacity_bytes) / 1024 / 1024 / 1024))) * 24",
           "editorMode": "code",
           "legendFormat": "__auto",
           "range": true,
@@ -161,7 +161,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(node_total_hourly_cost) + sum(pv_hourly_cost * on(persistentvolume) group_left() (kube_persistentvolume_capacity_bytes / 1024 / 1024 / 1024))) * 730",
+          "expr": "(sum(node_total_hourly_cost) + sum(pv_hourly_cost * on(persistentvolume) group_left() (max by (persistentvolume) (kube_persistentvolume_capacity_bytes) / 1024 / 1024 / 1024))) * 730",
           "editorMode": "code",
           "legendFormat": "__auto",
           "range": true,
@@ -283,7 +283,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(pv_hourly_cost * on(persistentvolume) group_left() (kube_persistentvolume_capacity_bytes / 1024 / 1024 / 1024))",
+          "expr": "sum(pv_hourly_cost * on(persistentvolume) group_left() (max by (persistentvolume) (kube_persistentvolume_capacity_bytes) / 1024 / 1024 / 1024))",
           "editorMode": "code",
           "legendFormat": "__auto",
           "range": true,
@@ -516,7 +516,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (persistentvolume) (pv_hourly_cost * on(persistentvolume) group_left() (kube_persistentvolume_capacity_bytes / 1024 / 1024 / 1024))",
+          "expr": "sum by (persistentvolume) (pv_hourly_cost * on(persistentvolume) group_left() (max by (persistentvolume) (kube_persistentvolume_capacity_bytes) / 1024 / 1024 / 1024))",
           "editorMode": "code",
           "legendFormat": "{{persistentvolume}}",
           "range": true,
@@ -580,7 +580,8 @@
           "editorMode": "code",
           "legendFormat": "CPU cores",
           "range": false,
-          "instant": true
+          "instant": true,
+          "format": "table"
         },
         {
           "refId": "B",
@@ -592,7 +593,8 @@
           "editorMode": "code",
           "legendFormat": "Memory",
           "range": false,
-          "instant": true
+          "instant": true,
+          "format": "table"
         },
         {
           "refId": "C",
@@ -604,12 +606,54 @@
           "editorMode": "code",
           "legendFormat": "Cost per hour",
           "range": false,
-          "instant": true
+          "instant": true,
+          "format": "table"
         }
       ],
       "fieldConfig": {
         "defaults": {},
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cost per hour"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 4
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU cores"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true
@@ -623,10 +667,20 @@
         {
           "id": "organize",
           "options": {
+            "excludeByName": {
+              "Time": true
+            },
             "renameByName": {
+              "namespace": "Namespace",
               "Value #A": "CPU cores",
-              "Value #B": "Memory (bytes)",
-              "Value #C": "Cost per hour ($)"
+              "Value #B": "Memory",
+              "Value #C": "Cost per hour"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3
             }
           }
         }

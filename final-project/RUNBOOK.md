@@ -23,6 +23,7 @@ aws eks update-kubeconfig --name mlops-final --region us-east-1 --profile goit
 | Data drift detected | [Data drift](#data-drift) |
 | The drift job is not running | [Drift job](#drift-job) |
 | A canary aborted by itself | [A canary aborted by itself](#a-canary-aborted-by-itself) |
+| Check who may do what | [Check the RBAC](#check-the-rbac) |
 | A model fails the checksum | [A model fails the checksum](#a-model-fails-the-checksum) |
 | MLflow answers 403 Invalid Host header | [MLflow answers 403](#mlflow-answers-403) |
 | An Argo CD app is stuck or a namespace will not delete | [Argo CD app stuck](#argocd-app-stuck) |
@@ -36,11 +37,14 @@ until `Ctrl+C`.
 
 ```bash
 kubectl -n argocd      port-forward svc/argocd-server 8080:80   # Argo CD
-kubectl -n mlops-system port-forward svc/mlflow       5000:5000 # MLflow
+kubectl -n mlops-system port-forward svc/mlflow       5001:5000 # MLflow
 kubectl -n monitoring  port-forward svc/grafana       3000:80   # Grafana
 kubectl -n monitoring  port-forward svc/prometheus-server 9090:80
 kubectl -n production  port-forward svc/inference     8000:80   # the API
 ```
+
+MLflow is on 5001 because macOS uses 5000 for AirPlay. Any port works as long
+as `serverAllowedHosts` covers it; the list allows `localhost:*`.
 
 Passwords:
 
@@ -53,6 +57,26 @@ kubectl -n monitoring get secret grafana-admin \
 
 > A port-forward binds to one **pod**, not to the Service. Restarting or
 > replacing that pod kills the forward without a message. Start it again.
+
+### Sending traffic
+
+Use a port-forward only to look at a single pod. For anything that has to reach
+the whole release — a canary, the dashboards, the drift job — send the traffic
+**from inside the cluster**, because a forward would put every request on the
+same pod:
+
+```bash
+scripts/cluster_traffic.sh production --mode normal  --count 3000 --rate 10
+scripts/cluster_traffic.sh production --mode drift   --count 6000 --rate 20
+scripts/cluster_traffic.sh production --mode invalid --count 20
+scripts/cluster_traffic.sh production --mode burst   --count 3000
+scripts/cluster_traffic.sh clean        # removes the throw-away pod
+```
+
+The script starts a plain `python:3.13-slim` pod called `traffic-generator` in
+the namespace `default`, copies `scripts/send_traffic.py` and the dataset into
+it and runs it against `http://inference.<namespace>.svc.cluster.local`. It is
+a test tool, which is why it is not in the GitOps tree.
 
 <a id="roll-out-a-new-model-version"></a>
 
@@ -71,6 +95,10 @@ It starts the Step Functions state machine, waits for it, and writes the result
 into the job summary: model name, version, `rmse`, `mae`, `r2`, `run_id`,
 `dataset_sha256` and `model_sha256`. Write down the **version** and the
 **`model_sha256`** — the promotion needs both.
+
+Measured on the full dataset: the state machine takes about **55 seconds** and
+the whole workflow about **1 minute 20**. If it takes much longer, look at the
+Job in `mlops-system`; the Step Functions console shows its last log lines.
 
 By hand instead:
 
@@ -96,8 +124,7 @@ curl -s localhost:8000/info | jq
 and look at the answers:
 
 ```bash
-python3 scripts/send_traffic.py --mode normal --count 200 --rate 10 \
-  --url http://localhost:8000
+scripts/cluster_traffic.sh staging --mode normal --count 400 --rate 10
 ```
 
 ### 3. Promote: one commit
@@ -116,9 +143,14 @@ git push
 
 Nothing else. Argo CD sees the commit within a minute.
 
-### 4. Watch the canary
+### 4. Send traffic, and watch the canary
+
+Start the traffic **first**, in a second terminal. With no traffic the analysis
+has nothing to measure, treats the empty answer as success and lets any version
+through — see [A canary aborted by itself](#a-canary-aborted-by-itself).
 
 ```bash
+scripts/cluster_traffic.sh production --mode normal --count 3000 --rate 10
 kubectl argo rollouts get rollout inference -n production --watch
 ```
 
@@ -126,6 +158,9 @@ Expected: 1 new pod out of 10 → a two minute pause → 5 out of 10 → a two m
 pause → all 10. The background analysis queries Prometheus every 30 seconds for
 the 5xx share of the new version and aborts after three failed measurements in
 a row.
+
+A healthy promotion takes **about five minutes** and ends with the AnalysisRun
+`Successful` and nine good measurements.
 
 Without the plugin:
 
@@ -145,14 +180,36 @@ curl -s localhost:8000/info | jq '.model_version, .model_sha256'
 kubectl -n production logs job/inference-registry-sync
 ```
 
-The hook prints one JSON audit line. In Grafana → Explore → Loki:
+The hook Job takes about 10 seconds and prints one JSON audit line per change.
+A real one, from the promotion of version 1:
+
+```json
+{"ts": "2026-09-21T07:44:27.079Z", "event": "model_registry_audit",
+ "service": "registry-ops", "action": "promote", "model": "california-housing",
+ "version": "1", "from_stage": "Staging", "to_stage": "Production",
+ "previous_production_version": null, "actor": "argocd",
+ "git_sha": "70b370f2025692555714d97edb525e4e550f157d",
+ "result": "success", "error": null, "level": "info"}
+```
+
+Every promotion after the first one prints **two** lines: `archive` for the
+version that was live, then `promote` for the new one.
+
+`git_sha` is the commit Argo CD had synced when the hook ran. That is usually
+the promotion commit, but not always: if other commits landed on the branch
+during the canary, the newest one is what Argo CD synced. Use the Git history,
+not this field, to find the promotion itself.
+
+In Grafana → Explore → Loki:
 
 ```logql
 {app="registry-ops"} | json | event="model_registry_audit"
 ```
 
-It names the action, the new version, the version that was archived, the actor
-(`argocd`) and the commit.
+**In MLflow**, turn the *New model registry UI* switch (top right of the model
+page) **off**. The old table has a **Stage** column and shows `Production` on
+the new version and `Archived` on the old one, which is the wording the
+promotion workflow uses. With the switch on, only the aliases are shown.
 
 <a id="roll-back"></a>
 
@@ -174,12 +231,29 @@ the `PostSync` hook runs `registry_ops sync --production-version <old>`, which
 moves the `production` alias and the `Production` stage back and archives the
 version that was live.
 
+It is the same path as a promotion, so it takes the same **five minutes or so**.
+Send traffic while it runs, for the same reason.
+
 **Checks.**
 
 ```bash
 kubectl argo rollouts get rollout inference -n production --watch
 curl -s localhost:8000/info | jq '.model_version'
+kubectl -n production logs job/inference-registry-sync
 ```
+
+A real rollback from version 2 back to version 1 — two lines, in this order:
+
+```json
+{"action": "archive",  "version": "2", "from_stage": "Production", "to_stage": "Archived",
+ "previous_production_version": "2", "actor": "argocd", "result": "success"}
+{"action": "rollback", "version": "1", "from_stage": "Archived", "to_stage": "Production",
+ "previous_production_version": "2", "actor": "argocd", "result": "success"}
+```
+
+`rollback` and not `promote`: the tool notices that the target version is
+archived and says so, which is what makes `git revert` readable in the audit
+trail.
 
 **If the registry has to be fixed without a deployment** — the escape hatch,
 for example when the Job failed but the pods are fine:
@@ -348,6 +422,22 @@ kubectl -n mlops-system logs job/drift-now -f
 The log is JSON, one object per line, with the share, the column scores and the
 number of samples.
 
+**What the numbers looked like on the real cluster**, so a reading can be
+compared with something:
+
+| Situation | Share | PSI of the columns that moved |
+|---|---|---|
+| normal traffic | 0.0 | every column under 0.012 |
+| just after 6000 drifted requests, window still mixed | 0.375 | `HouseAge` 1.46, `MedInc` 0.82, `Population` 0.24 |
+| next run, window full of drifted rows | 0.375 | `HouseAge` 9.63, `MedInc` 3.50, `Population` 0.37 |
+| later, normal traffic back in part of the window | 0.25 | `HouseAge` 1.22, `MedInc` 0.68 |
+
+Two readings follow from that table. PSI keeps growing as the window fills, so
+a rising score on the same columns is one event and not two. And the share
+**falls again by itself** once normal traffic returns, because the job always
+looks at the newest 5000 lines — a share that does not fall is the one to worry
+about.
+
 **Two things to know about this dataset before deciding.**
 
 - **The `AveOccup` blind spot.** PSI bins the live values into bins built from
@@ -400,7 +490,7 @@ time() - max(data_drift_last_run_timestamp_seconds)
 |---|---|---|
 | `SUSPEND: True` | somebody suspended it | `kubectl -n mlops-system patch cronjob drift-monitor -p '{"spec":{"suspend":false}}'` — and note that Argo CD self-heal would have done it anyway within a minute. |
 | Jobs exist but all fail | Loki or the PushGateway is unreachable | `kubectl -n monitoring get pods`. Test from inside: `kubectl -n mlops-system run curl --rm -it --image=curlimages/curl --restart=Never -- curl -s http://loki.monitoring.svc.cluster.local:3100/ready` |
-| `not_enough_samples` in every log | nobody is calling `/predict` | Expected on an idle cluster. Send traffic: `python3 scripts/send_traffic.py --mode normal --count 500 --rate 15 --url http://localhost:8000` against a port-forward to `production`. |
+| `not_enough_samples` in every log | nobody is calling `/predict` | Expected on an idle cluster. Send traffic: `scripts/cluster_traffic.sh production --mode normal --count 3000 --rate 10`. |
 | No Jobs at all | the CronJob was missed while the cluster was busy | `startingDeadlineSeconds` is 300, so a very late run is skipped rather than queued. Run one by hand: `kubectl -n mlops-system create job drift-now --from=cronjob/drift-monitor` |
 | The pod is `Pending` | no room on the nodes | `kubectl -n mlops-system describe pod <name>`, look at Events. Section [Latency](#latency) covers the capacity case. |
 
@@ -434,8 +524,20 @@ kubectl -n production get analysisruns
 kubectl -n production describe analysisrun <name>
 ```
 
-The `Message` of the failed measurement holds the value the query returned. Two
-different things can have happened:
+The `Message` of the Rollout says which of the two nets caught it. After a
+failed analysis it reads:
+
+```
+RolloutAborted: Rollout aborted update to revision 5: Background analysis phase
+error/failed: Metric "error-rate" assessed Failed due to failed (3) > failureLimit (2)
+```
+
+`describe analysisrun` then shows every measurement with its value. A real one:
+an empty first result (the new pod had served nothing yet, counted as success),
+then 0.548, 0.583 and 0.572 against the limit of 0.05. The abort came about two
+minutes after the push.
+
+Two different things can have happened:
 
 1. **The analysis failed three times in a row.** The new version really did
    return more than `analysisErrorRateMax` (5 %) of 5xx. Look at the error
@@ -445,6 +547,12 @@ different things can have happened:
    `progressDeadlineAbort: true`. This is what happens when the new pods never
    become ready — almost always a checksum mismatch, see
    [A model fails the checksum](#a-model-fails-the-checksum).
+
+**How bad was it?** Look at *Share of 5xx answers* on the inference dashboard.
+Only the canary pod served the bad version, so the number is roughly its share
+of the pods times its own failure rate. Measured during the demo abort: a pod
+failing half of its requests showed up as **2.08 % of 5xx** for the whole
+service, for about two minutes.
 
 **Actions.**
 
@@ -459,9 +567,50 @@ git push
 Without the revert, self-heal will start the same canary again on the next
 reconciliation.
 
+**Expect a delay before the revert takes effect.** After the abort the sync
+operation is a failed one, and Argo CD retries it with a backoff — five
+attempts, five to eight minutes in total — before it looks at the new commit.
+Nothing is broken during that time: production keeps serving the old version.
+Two ways forward:
+
+- **wait.** The revert is applied after the last retry. No action needed, and
+  this is the normal path.
+- **skip the wait.** Open the Application in the Argo CD UI and press
+  **Terminate** on the running operation. The next reconciliation starts from
+  the reverted commit straight away.
+
 **Confirm.** The Application is `Synced/Healthy` again, the Rollout is
 `Healthy`, `curl /info` shows the old version, and the registry still names the
-old version as production — the `PostSync` hook never ran.
+old version as production — the `PostSync` hook never ran, which is correct.
+
+<a id="check-the-rbac"></a>
+
+## Check the RBAC
+
+**When.** After a change under `rbac/`, after an upgrade of the cluster or of
+Argo Rollouts, or when somebody says "I cannot do X any more".
+
+```bash
+scripts/check_rbac.sh
+```
+
+The script asks the cluster 32 `kubectl auth can-i` questions for the three
+groups — `mlops-engineers`, `viewers`, `stepfunctions-runners` — and compares
+every answer with the tables in [`rbac/README.md`](rbac/README.md). It prints
+one row per question and ends with `All 32 answers match rbac/README.md.` It
+exits non-zero on the first mismatch, so it can be run from a pipeline.
+
+It needs an account that may impersonate, that is the cluster creator. The
+denials are as important as the allowances: an engineer must **not** be able to
+read a Secret, `exec` into a production pod or patch the production Rollout.
+
+Two things to remember when adding a question:
+
+- write subresources as `--subresource=log`, not `pods/log`. In the short form
+  kubectl answers "no" for some verbs even when the rule exists.
+- a `no` that should be a `yes` is usually a missing `apiGroup` in the
+  ClusterRole, not a missing binding. `kubectl auth can-i --list -n <ns>
+  --as=test --as-group=<group>` prints everything the group really has.
 
 <a id="a-model-fails-the-checksum"></a>
 
@@ -515,8 +664,8 @@ probes stay green while everything else is refused.
 
 ```bash
 kubectl -n mlops-system get deploy mlflow -o yaml | grep -A5 allowed-hosts
-curl -s -o /dev/null -w '%{http_code}\n' localhost:5000/health   # 200
-curl -s -o /dev/null -w '%{http_code}\n' localhost:5000/         # 403 if this is it
+curl -s -o /dev/null -w '%{http_code}\n' localhost:5001/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' localhost:5001/         # 403 if this is it
 ```
 
 **Actions.**
@@ -527,7 +676,7 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:5000/         # 403 if this i
   `serverAllowedHosts` and commit. The file already covers every short form of
   `mlflow.mlops-system.svc.cluster.local` plus `10.*`.
 
-**Confirm.** `curl -s localhost:5000/api/2.0/mlflow/experiments/search -X POST
+**Confirm.** `curl -s localhost:5001/api/2.0/mlflow/experiments/search -X POST
 -H 'Content-Type: application/json' -d '{"max_results":1}'` returns JSON, and
 the UI opens.
 

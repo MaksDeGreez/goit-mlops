@@ -13,7 +13,8 @@ visible, reversible and safe.
 
 The platform is small on purpose:
 
-- One EKS cluster, two `t4g.large` nodes, about 3.8 CPUs for pods in total.
+- One EKS cluster, two `t4g.large` nodes. Measured allocatable: 1930m CPU and
+  about 6.9 GiB per node, so roughly 3.8 CPUs and 13 GiB for pods in total.
 - Nothing is public. There is no ingress controller, no load balancer, no
   domain and no TLS certificate. Everything is reached with `kubectl
   port-forward`.
@@ -62,7 +63,7 @@ have put the same broken version on 100 % of the requests.
 
 | Option | Why not |
 |---|---|
-| **Blue-Green** | Needs a second full copy of the service. Ten more pods at 256Mi would be 2.5 GiB of extra memory requests on a cluster that has about 12 GiB, and the switch is all-or-nothing: the first request a broken version sees is 100 % of the traffic. |
+| **Blue-Green** | Needs a second full copy of the service. Ten more pods at 256Mi would be 2.5 GiB of extra memory requests on a cluster that has about 13 GiB and is already two thirds full, and the switch is all-or-nothing: the first request a broken version sees is 100 % of the traffic. |
 | **A/B testing** | Compares two models on a business metric. That needs labels, a feedback loop and a lot of traffic. This project has synthetic traffic from a script, so the comparison would not mean anything. |
 | **Canary with a real traffic router** | The clean way to get an exact 10 % split. It needs an ingress controller or a service mesh. `ingress-nginx` was archived in March 2026 and gets no fixes, the Argo Rollouts Gateway API plugin is still alpha, and an ALB would cost money and put the service on the public internet, which this project deliberately avoids. |
 | **Plain rolling update** | What staging uses, and it is right there. It cannot pause, cannot measure anything and cannot roll itself back, so it is not enough for production. |

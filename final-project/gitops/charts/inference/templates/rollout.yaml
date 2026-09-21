@@ -1,0 +1,181 @@
+{{/*
+An Argo Rollouts Rollout instead of a Deployment, because a Deployment cannot
+pause a rollout and cannot roll itself back when a new version starts failing.
+
+The canary is replica based: there is no traffic router in this cluster, so the
+share of traffic the new version gets is simply its share of the pods behind
+one Service. With ten replicas, "10 %" is one new pod next to nine old ones.
+That is accurate enough for this project and it needs no service mesh.
+*/}}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "inference.name" . }}
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  # A version that never becomes ready (a wrong checksum keeps /health/ready at
+  # 503) makes no progress at all, so no analysis would ever see a 5xx. The
+  # deadline is the second safety net, and progressDeadlineAbort turns the
+  # timeout into a real abort instead of a Degraded rollout that waits.
+  progressDeadlineSeconds: {{ .Values.progressDeadlineSeconds }}
+  progressDeadlineAbort: true
+  selector:
+    matchLabels:
+      {{- include "inference.selectorLabels" . | nindent 6 }}
+  strategy:
+    canary:
+      # One new pod at a time and never fewer pods than asked for. This is what
+      # makes the first step really 1 pod out of 10: with maxSurge 2 the
+      # controller would round up and the "10 %" step would serve 20 %.
+      maxSurge: 1
+      maxUnavailable: 0
+      {{- if and .Values.canaryEnabled .Values.analysisEnabled .Values.modelVersion }}
+      # Background analysis: it runs next to the steps instead of between them,
+      # so a bad version is caught during the pauses. Argo Rollouts skips it on
+      # the very first deploy, when there is no old version to compare with.
+      #
+      # It is also left out while no model version is pinned. The query asks
+      # for one version by name, and with an empty name it could only ever
+      # return nothing - an analysis that always passes looks like a guard and
+      # is not one.
+      analysis:
+        templates:
+          - templateName: {{ include "inference.name" . }}-error-rate
+        # Step numbers are counted from 0, so 1 is the first pause: the analysis
+        # starts once the new pod exists and stops when the last step is done.
+        startingStep: 1
+        args:
+          - name: model-version
+            value: {{ .Values.modelVersion | quote }}
+          - name: namespace
+            value: {{ .Release.Namespace | quote }}
+      {{- end }}
+      steps:
+        {{- if .Values.canaryEnabled }}
+        {{- range .Values.canaryWeights }}
+        - setWeight: {{ . }}
+        - pause:
+            duration: {{ $.Values.canaryPauseSeconds }}s
+        {{- end }}
+        # There is no "setWeight: 100" here. After the last step the Rollout
+        # scales the new version to all replicas by itself, so the extra step
+        # would only be one more thing to keep in step with the pause list.
+        {{- else }}
+        # Staging has no steps: a new model should show up there at once.
+        []
+        {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "inference.selectorLabels" . | nindent 8 }}
+        # Readability: "kubectl get pods -L model-version" shows which pod runs
+        # which model during a canary. In staging the version is chosen by the
+        # alias at run time, so the label can only name the alias.
+        #
+        # Prometheus copies pod labels onto the metrics of that pod, so this one
+        # arrives as "model_version" as well. The scrape job of the Prometheus
+        # chart sets honor_labels: true, which means the label the service
+        # exports itself wins, and that is the one the analysis needs.
+        model-version: {{ .Values.modelVersion | default (printf "alias-%s" .Values.modelAlias) | quote }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8000"
+    spec:
+      serviceAccountName: {{ include "inference.name" . }}
+      automountServiceAccountToken: false
+      # Enough for uvicorn to finish the requests it is holding. The service
+      # answers in milliseconds, so this is never used in full.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {{- include "inference.podSecurityContext" . | nindent 8 }}
+      # Spread the pods over the nodes, but never leave a pod unscheduled for
+      # it: during a canary the counts are odd on purpose.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "inference.selectorLabels" . | nindent 14 }}
+      containers:
+        - name: inference
+          image: {{ include "inference.image" . }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.mlflowTrackingUri | quote }}
+            - name: MODEL_NAME
+              value: {{ .Values.modelName | quote }}
+            # The service reads an empty value as "not set", so the two ways of
+            # choosing a model can both be written here without a condition.
+            - name: MODEL_VERSION
+              value: {{ .Values.modelVersion | quote }}
+            - name: MODEL_ALIAS
+              value: {{ .Values.modelAlias | quote }}
+            - name: MODEL_SHA256
+              value: {{ .Values.modelSha256 | quote }}
+            - name: MODEL_RELOAD_SECONDS
+              value: {{ .Values.modelReloadSeconds | quote }}
+            - name: RATE_LIMIT
+              value: {{ .Values.rateLimit | quote }}
+            - name: FAULT_RATE
+              value: {{ .Values.faultRate | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: PORT
+              value: "8000"
+          # The process downloads and checks the model before it opens the
+          # port, so nothing answers during startup. The startup probe gives it
+          # three minutes; only after it passes do the other two probes count.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 36
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # /health/ready stays 503 while no checked model is loaded. That is a
+          # readiness problem and not a liveness one: a pod with a bad checksum
+          # must stay up and visible, not restart in a loop.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ .Values.cpuRequest | quote }}
+              memory: {{ .Values.memoryRequest | quote }}
+            limits:
+              {{- if .Values.cpuLimit }}
+              cpu: {{ .Values.cpuLimit | quote }}
+              {{- end }}
+              memory: {{ .Values.memoryLimit | quote }}
+          securityContext:
+            {{- include "inference.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            # The only place the container has to write: the model is
+            # downloaded into TMPDIR before it is checked and loaded.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi

@@ -1,0 +1,29 @@
+# The one thing an engineer may change in production: the progress of a
+# rollout that is already running.
+#
+# Not "patch rollouts". What is deployed comes from a commit, and an engineer
+# who could patch the Rollout could change the image or the model version
+# without one. ArgoCD would put it back a minute later, but by then the audit
+# trail would already be wrong.
+#
+# "patch rollouts/status" is what "kubectl argo rollouts abort" and
+# "kubectl argo rollouts promote" really send: a merge patch to the status
+# subresource (checked in the Argo Rollouts source for v1.10.0). Stopping a
+# canary that is going wrong, or letting a good one skip the rest of its
+# pauses, changes how a rollout proceeds and not what is deployed - the spec
+# stays exactly what git says, and an aborted canary goes back to the version
+# git already describes.
+#
+# The one command this leaves out is "kubectl argo rollouts pause", which
+# patches spec.paused. That is on purpose: a rollout paused for ever is a
+# change to what is deployed.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mlops-final-rollout-operator
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["rollouts/status"]
+    verbs: ["get", "patch", "update"]

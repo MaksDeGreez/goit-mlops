@@ -1,0 +1,30 @@
+# Turns the three dashboard files into ConfigMaps.
+#
+# The label grafana_dashboard: "1" is what the sidecar in the Grafana pod
+# looks for. It copies the JSON into the folder Grafana reads, so a dashboard
+# can be changed with one commit and no restart.
+#
+# disableNameSuffixHash keeps the names stable. With the hash on, every edit
+# would create a new ConfigMap and leave the old one behind, and Argo CD would
+# show a change on each sync.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+configMapGenerator:
+  - name: grafana-dashboard-inference
+    files:
+      - inference.json
+  - name: grafana-dashboard-model-quality
+    files:
+      - model-quality.json
+  - name: grafana-dashboard-cost
+    files:
+      - cost.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: mlops-final

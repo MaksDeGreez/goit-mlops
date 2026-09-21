@@ -1,0 +1,15 @@
+# Everything inside one namespace, Secrets and "kubectl exec" included.
+#
+# The wildcards are meant. Staging is the place where an engineer tries things
+# out, and a list of allowed resources would only become a list of the things
+# nobody thought of yet. This role is bound in staging and nowhere else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mlops-final-namespace-admin
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+rules:
+  - apiGroups: ["", "apps", "batch", "autoscaling", "networking.k8s.io", "policy", "argoproj.io"]
+    resources: ["*"]
+    verbs: ["*"]

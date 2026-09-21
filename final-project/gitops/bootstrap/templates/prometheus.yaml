@@ -1,0 +1,29 @@
+# Prometheus, wave 1.
+#
+# The release name has to stay "prometheus": the chart builds the Service name
+# from it, and everything else in this project looks for
+# prometheus-server.monitoring.svc.cluster.local.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.prometheus.repoURL | quote }}
+      chart: {{ .Values.charts.prometheus.name }}
+      targetRevision: {{ .Values.charts.prometheus.version | quote }}
+      helm:
+        releaseName: prometheus
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/prometheus/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

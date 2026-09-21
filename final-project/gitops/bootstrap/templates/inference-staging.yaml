@@ -1,0 +1,41 @@
+# The inference service in staging, wave 3.
+#
+# Staging follows the alias "staging" in the model registry, so every training
+# run is served here a minute later with no deployment at all. The values that
+# are edited by hand are in gitops/envs/staging.yaml.
+#
+# The chart lives in this repository, so a plain path source is enough and the
+# value file can be given as a relative path from the chart folder.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inference-staging
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: {{ .Values.basePath }}/gitops/charts/inference
+    helm:
+      releaseName: inference
+      valueFiles:
+        - ../../envs/staging.yaml
+      parameters:
+        # The registry host holds the AWS account id, so it is never written
+        # into Git. Terraform passes it to the root Application and it ends up
+        # here.
+        - name: imageRegistry
+          value: {{ .Values.imageRegistry | quote }}
+        - name: mlflowTrackingUri
+          value: {{ .Values.addresses.mlflow | quote }}
+        - name: prometheusAddress
+          value: {{ .Values.addresses.prometheus | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.staging }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

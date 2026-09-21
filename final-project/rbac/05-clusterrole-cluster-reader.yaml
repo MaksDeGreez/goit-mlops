@@ -1,0 +1,26 @@
+# The shape of the cluster: which namespaces and nodes exist, which storage
+# classes and which custom resources. No object here holds data, which is why
+# this is the only role that is bound cluster wide.
+#
+# Without it "kubectl get ns" fails for both groups and the
+# "kubectl argo rollouts" plugin cannot look up its own custom resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mlops-final-cluster-reader
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+  # "kubectl top nodes"
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes"]
+    verbs: ["get", "list"]

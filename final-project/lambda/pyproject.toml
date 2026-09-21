@@ -1,0 +1,30 @@
+[project]
+name = "pipeline-lambdas"
+version = "0.1.0"
+description = "Lambda functions of the training pipeline"
+requires-python = ">=3.13,<3.14"
+# Both functions use the standard library only. There is nothing to install,
+# and the deployment package is one file per function.
+dependencies = []
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+]
+
+[tool.pytest.ini_options]
+# Put this folder on sys.path, so the tests import the handlers the same way
+# the Lambda runtime does.
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+# Same rules as the rest of the project; only the list of local modules differs,
+# because these two files are not part of any of the services.
+extend = "../pyproject.toml"
+
+[tool.ruff.lint.isort]
+known-first-party = ["log_metrics", "validate_input"]

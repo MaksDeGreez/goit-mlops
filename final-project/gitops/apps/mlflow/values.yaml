@@ -1,0 +1,122 @@
+# MLflow tracking server and model registry.
+#
+# It is the centre of the project: the training job writes runs and model
+# versions here, registry-ops moves the aliases, and the inference service
+# downloads the model from here.
+#
+# Two values are missing on purpose and are added by the Application in the
+# bootstrap chart: the name of the S3 bucket and the AWS region. Both are only
+# known after Terraform created them.
+
+replicaCount: 1
+
+backendStore:
+  # Create and update the MLflow tables on start.
+  databaseMigration: true
+  # An init container that waits for PostgreSQL. Without it MLflow crash-loops
+  # while the database is still starting.
+  databaseConnectionCheck: true
+  postgres:
+    enabled: true
+    host: postgres.mlops-system.svc.cluster.local
+    port: 5432
+    database: mlflow
+    driver: psycopg2
+  # User and password come from the secret Terraform created, so no password
+  # is written into Git. The database name is not a secret and stays above.
+  existingDatabaseSecret:
+    name: mlflow-postgres
+    usernameKey: username
+    passwordKey: password
+
+artifactRoot:
+  # Proxied storage means the client uploads and downloads artifacts through
+  # the MLflow server, and only the server talks to S3. Clients then need one
+  # address and no AWS credentials at all.
+  proxiedArtifactStorage: true
+  s3:
+    enabled: true
+    # bucket: set by the Application, the name has a random suffix.
+    # No access key here: the pod gets its rights from the IAM role that EKS
+    # Pod Identity attaches to the service account below.
+
+serviceAccount:
+  # The chart creates the service account. Terraform only creates the Pod
+  # Identity association that gives this exact name access to the artifact
+  # bucket, so the name must stay "mlflow".
+  create: true
+  name: mlflow
+
+service:
+  type: ClusterIP
+  # The chart serves on 80 by default. 5000 is the port every service in this
+  # project uses for MLflow, and the one a port-forward maps.
+  port: 5000
+  containerPort: 5000
+
+# MLflow 3 refuses a request whose Host header is not in this list. That is a
+# guard against DNS rebinding, and it is on by default with a list of
+# localhost and private addresses. As soon as the list is set here it replaces
+# the defaults, so every name a client really uses has to be in it.
+#
+# A pattern that contains "*" is matched with shell globbing, an entry without
+# one has to match the whole Host header exactly. The port is part of the
+# header, so "name:*" is the short way to cover every port.
+#
+# /health and /version are never checked, so the readiness and liveness probes
+# of the chart work whatever is in this list.
+serverAllowedHosts:
+  # In-cluster names. A Kubernetes client may shorten the name to any of these.
+  - mlflow
+  - mlflow:*
+  - mlflow.mlops-system
+  - mlflow.mlops-system:*
+  - mlflow.mlops-system.svc
+  - mlflow.mlops-system.svc:*
+  - mlflow.mlops-system.svc.cluster.local
+  - mlflow.mlops-system.svc.cluster.local:*
+  # kubectl port-forward. 5000 is the usual choice, 5001 is the fallback when
+  # 5000 is already taken on the laptop.
+  - localhost
+  - localhost:*
+  - 127.0.0.1
+  - 127.0.0.1:*
+  # Anything inside the cluster network that reaches the pod by its address.
+  # The cluster VPC is 10.0.0.0/16, and this is what the MLflow default list
+  # would have allowed as well.
+  - 10.*
+
+extraEnvVars:
+  # AWS_DEFAULT_REGION: set by the Application.
+  # boto3 needs a region, and Pod Identity only hands over credentials.
+  MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING: "false"
+
+extraArgs:
+  # MLflow 3 serves the API with uvicorn and starts several workers by
+  # default. Each worker loads its own copy of MLflow, and together they went
+  # over 1 GiB and were killed by the kernel. One worker is plenty for this
+  # project.
+  workers: "1"
+
+telemetry:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    # Model upload and download go through this process, so it needs room.
+    memory: 2Gi
+
+livenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6

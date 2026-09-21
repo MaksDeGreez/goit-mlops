@@ -1,0 +1,17 @@
+# MLflow, Postgres, the training jobs and the drift job live here. Read only:
+# the platform is deployed by ArgoCD, not by hand.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mlops-engineers-view
+  namespace: mlops-system
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlops-final-viewer
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: mlops-engineers

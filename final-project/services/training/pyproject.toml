@@ -1,0 +1,26 @@
+[project]
+name = "training"
+version = "0.1.0"
+description = "Training job for the California Housing model"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "mlflow>=3.16.1,<4",
+    "pandas>=2.3,<3",
+    "pyyaml>=6.0,<7",
+    "scikit-learn>=1.9.1,<2",
+]
+
+[tool.uv]
+# The job is run as "python -m training.run", not installed as a package.
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+]
+
+[tool.pytest.ini_options]
+# Put the service folder on sys.path so "import training" works without
+# installing the package.
+pythonpath = ["."]
+testpaths = ["tests"]

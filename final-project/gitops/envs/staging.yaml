@@ -1,0 +1,52 @@
+# Staging values of the inference chart (namespace "staging").
+#
+# This file and production.yaml are the two files that are edited during normal
+# work. Everything else in gitops/ describes how the platform is built.
+#
+# Staging follows the model alias "staging", which the training job moves to
+# every new model version. Nothing has to be changed here when a model is
+# trained: the pods notice the new version within modelReloadSeconds and load
+# it. That is why the keys below almost never change.
+#
+# The image registry, the MLflow address and the Prometheus address are not
+# here. The ArgoCD Application passes them in, because the registry host
+# contains the AWS account id and that must not be written into a public
+# repository.
+
+# The container image of the service. The CI pipeline builds one image per
+# commit and tags it with the full 40 character commit sha; change this line to
+# deploy another build. The value below is a short sha from a local build and
+# is replaced during the first deployment (see README, step 4).
+imageTag: 8f55c4ffbb729218427eb1a87f89af9e78e20301
+
+replicas: 2
+
+modelName: california-housing
+# Follow the alias, do not pin a version: that is the whole point of staging.
+modelVersion: ""
+modelAlias: staging
+# No checksum is pinned here. The service still compares the model file with
+# the model_sha256 tag the training job wrote; production pins the value in git
+# on top of that.
+modelSha256: ""
+modelReloadSeconds: 60
+
+rateLimit: 20/second
+faultRate: 0
+logLevel: INFO
+
+# Two pods, 256Mi each: 512Mi of memory requests for the whole namespace.
+# 50m and not the chart default of 100m: the two nodes have about 3.8 vCPU
+# between them, and up to 13 pods of this service can exist during a canary.
+cpuRequest: 50m
+memoryRequest: 256Mi
+cpuLimit: ""
+memoryLimit: 384Mi
+
+# No canary steps, no analysis, no registry hook. A new version of the service
+# should appear in staging at once, and staging says nothing about which model
+# is in production.
+canaryEnabled: false
+analysisEnabled: false
+registrySyncEnabled: false
+pdbEnabled: false

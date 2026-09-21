@@ -1,0 +1,404 @@
+# GitLab CI version of .github/workflows/final-project-ci.yml.
+#
+# The project is hosted on GitHub, so the pipeline that really runs is the
+# GitHub Actions one. This file is the same pipeline written for GitLab and it
+# was tested locally with gitlab-ci-local.
+#
+# GitLab expects the CI file in the root of the repository. To use this one,
+# set "CI/CD configuration file" in Settings -> CI/CD -> General pipelines to
+# final-project/.gitlab-ci.yml.
+
+stages:
+  - lint
+  - validate
+  - test
+  - build
+  - secret-scan
+  - push
+  - train
+
+# Every job runs on the same branches. GitLab has no "paths" filter on the
+# pipeline itself, so the rules are repeated through this anchor.
+.on_the_project_branches: &on_the_project_branches
+  rules:
+    - if: $CI_COMMIT_BRANCH == "final-project"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+pre-commit:
+  stage: lint
+  # The image already contains Python 3.13 and uv, and it is built for both
+  # amd64 and arm64.
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+  variables:
+    TERRAFORM_VERSION: "1.15.5"
+    # Keep the hook environments inside the project so GitLab can cache them.
+    PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
+
+  cache:
+    key: pre-commit-$TERRAFORM_VERSION
+    paths:
+      - .cache/pre-commit
+
+  before_script:
+    - |
+      set -eu
+
+      # git is needed by pre-commit, unzip by the Terraform download.
+      apt-get update -qq
+      apt-get install -y -qq --no-install-recommends ca-certificates curl git unzip
+
+      # The terraform fmt hook calls the terraform binary, so install it.
+      ARCH=$(dpkg --print-architecture)
+      curl -fsSL -o /tmp/terraform.zip \
+        "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip"
+      unzip -q -o /tmp/terraform.zip -d /usr/local/bin
+      terraform version
+
+      # gitlab-ci-local copies the files without the git history, so give
+      # pre-commit a repository to work with.
+      git config --global --add safe.directory "$CI_PROJECT_DIR"
+      git rev-parse --git-dir >/dev/null 2>&1 || {
+        git init -q .
+        git add -A
+      }
+
+  script:
+    - uv sync --locked --project final-project
+    - uv run --project final-project pre-commit run --all-files --show-diff-on-failure
+
+  <<: *on_the_project_branches
+
+
+terraform:
+  stage: validate
+  # The official image starts terraform itself, and a shell is needed instead.
+  # It is Alpine, so bash has to be added: the script uses arrays.
+  image:
+    name: hashicorp/terraform:1.15.5
+    entrypoint: [""]
+
+  before_script:
+    - apk add --no-cache bash
+
+  script:
+    # The same script that is run on the machine. "init -backend=false" means
+    # it never contacts the S3 state bucket, so no AWS credentials are needed.
+    - bash final-project/scripts/validate_terraform.sh
+
+  <<: *on_the_project_branches
+
+
+gitops:
+  stage: validate
+  image: alpine:3.22
+
+  variables:
+    HELM_VERSION: "4.3.0"
+    KUBECONFORM_VERSION: "0.8.0"
+    KUSTOMIZE_VERSION: "5.8.1"
+    YQ_VERSION: "4.53.6"
+
+  before_script:
+    - |
+      set -eu
+      apk add --no-cache bash curl tar coreutils
+
+      # Shared GitLab runners are amd64, the development machine is arm64, so
+      # both are supported and the checksum is picked to match.
+      case "$(uname -m)" in
+        aarch64|arm64) ARCH=arm64 ;;
+        x86_64) ARCH=amd64 ;;
+        *) echo "unsupported architecture $(uname -m)" >&2; exit 1 ;;
+      esac
+
+      if [ "$ARCH" = "arm64" ]; then
+        HELM_SHA256=31c5794dd55c66a51e6b7d2e2ac7a114ae8b1de41ff1d9ba51748ac973b06a08
+        KUBECONFORM_SHA256=1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87
+        KUSTOMIZE_SHA256=0953ea3e476f66d6ddfcd911d750f5167b9365aa9491b2326398e289fef2c142
+        YQ_SHA256=88a1016bc1d657375a35864e4f44b6f333df8ff97b559f51bba0adcb2169df09
+      else
+        HELM_SHA256=86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb
+        KUBECONFORM_SHA256=9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+        KUSTOMIZE_SHA256=029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d
+        YQ_SHA256=c5f056448f973ae7d39b5401949648a78f2dc1947d6a8eb65be60d5c504b9385
+      fi
+
+      verify() {
+        echo "$2  $1" | sha256sum -c - >/dev/null ||
+          { echo "checksum of $1 does not match" >&2; exit 1; }
+      }
+
+      cd /tmp
+      curl -fsSLo helm.tgz "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz"
+      verify helm.tgz "$HELM_SHA256"
+      tar -xzf helm.tgz && install -m 0755 "linux-${ARCH}/helm" /usr/local/bin/helm
+
+      curl -fsSLo kubeconform.tgz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz"
+      verify kubeconform.tgz "$KUBECONFORM_SHA256"
+      tar -xzf kubeconform.tgz kubeconform && install -m 0755 kubeconform /usr/local/bin/kubeconform
+
+      curl -fsSLo kustomize.tgz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz"
+      verify kustomize.tgz "$KUSTOMIZE_SHA256"
+      tar -xzf kustomize.tgz kustomize && install -m 0755 kustomize /usr/local/bin/kustomize
+
+      curl -fsSLo yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${ARCH}"
+      verify yq "$YQ_SHA256"
+      install -m 0755 yq /usr/local/bin/yq
+
+      cd "$CI_PROJECT_DIR"
+
+  script:
+    - bash final-project/scripts/validate_gitops.sh
+
+  <<: *on_the_project_branches
+
+
+tests:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+  # One job per component: the four services and the two Lambda handlers. The
+  # folder is written out because the Lambdas are not under services/.
+  parallel:
+    matrix:
+      - COMPONENT:
+          - services/training
+          - services/inference
+          - services/registry-ops
+          - services/drift-monitor
+          - lambda
+
+  variables:
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+
+  cache:
+    key: uv-$COMPONENT
+    paths:
+      - .cache/uv
+
+  script:
+    - cd "final-project/$COMPONENT"
+    # --locked fails if the lock file does not match pyproject.toml.
+    - uv sync --locked
+    - uv run pytest -q
+
+  <<: *on_the_project_branches
+
+
+build-and-scan:
+  stage: build
+  # NOT tested on the development machine: gitlab-ci-local cannot start the
+  # docker-in-docker service a GitLab runner gives this job. The steps are the
+  # same ones the GitHub workflow runs, and those were tested.
+  image: docker:29-cli
+  services:
+    - docker:29-dind
+
+  parallel:
+    matrix:
+      - SERVICE: [training, inference, registry-ops, drift-monitor]
+
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: "tcp://docker:2376"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+    TRIVY_VERSION: "0.74.0"
+    IMAGE: "final-project/$SERVICE:$CI_COMMIT_SHA"
+
+  before_script:
+    # Shared GitLab runners are amd64. The scanner is a single binary, and
+    # installing it here lets it talk to the same daemon that built the image.
+    - apk add --no-cache curl tar
+    - curl -fsSL
+      "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+      | tar -xz -C /usr/local/bin trivy
+    - trivy --version
+
+  script:
+    - cd final-project
+    - docker build -f "services/$SERVICE/Dockerfile" -t "$IMAGE" .
+    - test "$(docker run --rm --entrypoint id "$IMAGE" -u)" = "10001"
+    # A report only, see the comment in the GitHub workflow.
+    - trivy image --quiet --scanners vuln --ignore-unfixed --severity HIGH
+      --format table "$IMAGE"
+    - trivy image --quiet --scanners vuln --ignore-unfixed --severity CRITICAL
+      --exit-code 1 --format table "$IMAGE"
+    # The push to ECR is the separate job push-images, below.
+
+  <<: *on_the_project_branches
+
+
+secret-scan:
+  stage: secret-scan
+  image:
+    name: ghcr.io/gitleaks/gitleaks:v8.30.1
+    # The image starts gitleaks itself, and GitLab needs a shell instead.
+    entrypoint: [""]
+
+  script:
+    # The pre-commit hook only sees the changes that are being committed, so
+    # in CI it would find nothing. Only the paths of this project are scanned:
+    # the graded homework folders hold demo credentials that were committed on
+    # purpose, and an allowlist for them could also hide a real key here.
+    - gitleaks dir final-project --no-banner --redact --exit-code 1
+    - gitleaks dir .github/workflows --no-banner --redact --exit-code 1
+
+  <<: *on_the_project_branches
+
+
+push-images:
+  stage: push
+  # NOT tested on the development machine, for two reasons: gitlab-ci-local
+  # cannot start the docker-in-docker service, and the IAM role of this project
+  # trusts GitHub's OIDC provider, not GitLab's. Running this for real would
+  # mean adding a second identity provider in AWS. The steps are the same ones
+  # the GitHub job push-images runs, and those were written against the same
+  # AWS calls.
+  image: docker:29-cli
+  services:
+    - docker:29-dind
+
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: "tcp://docker:2376"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+
+  # GitLab hands the job a signed token. AWS trades it for temporary
+  # credentials, so no access key is stored in the project.
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+
+  rules:
+    # Only on the project branch, and only once the AWS side exists.
+    - if: $CI_COMMIT_BRANCH == "final-project" && $FINAL_AWS_ROLE_ARN != null
+
+  before_script:
+    - apk add --no-cache aws-cli jq
+
+  script:
+    - |
+      set -eu
+
+      credentials="$(aws sts assume-role-with-web-identity \
+        --role-arn "$FINAL_AWS_ROLE_ARN" \
+        --role-session-name "gitlab-$CI_JOB_ID" \
+        --web-identity-token "$GITLAB_OIDC_TOKEN" \
+        --duration-seconds 3600 \
+        --query Credentials --output json)"
+
+      AWS_ACCESS_KEY_ID="$(echo "$credentials" | jq -r .AccessKeyId)"
+      AWS_SECRET_ACCESS_KEY="$(echo "$credentials" | jq -r .SecretAccessKey)"
+      AWS_SESSION_TOKEN="$(echo "$credentials" | jq -r .SessionToken)"
+      export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+
+      account="$(aws sts get-caller-identity --query Account --output text)"
+      REGISTRY="$account.dkr.ecr.$AWS_REGION.amazonaws.com"
+
+      aws ecr get-login-password --region "$AWS_REGION" |
+        docker login --username AWS --password-stdin "$REGISTRY"
+
+      cd final-project
+      for service in training inference registry-ops drift-monitor; do
+        repository="final-project/$service"
+
+        # ECR tags are immutable, so a re-run of the same commit must skip the
+        # image instead of failing.
+        if aws ecr describe-images --repository-name "$repository" \
+             --image-ids "imageTag=$CI_COMMIT_SHA" >/dev/null 2>&1; then
+          echo "$repository:$CI_COMMIT_SHA is already in the registry, skipping"
+          continue
+        fi
+
+        docker build -f "services/$service/Dockerfile" \
+          -t "$REGISTRY/$repository:$CI_COMMIT_SHA" .
+        docker push "$REGISTRY/$repository:$CI_COMMIT_SHA"
+      done
+
+
+train:
+  stage: train
+  # NOT tested on the development machine, for the same reasons as
+  # push-images. This is the GitLab version of
+  # .github/workflows/final-project-train.yml: a separate pipeline with a
+  # separate, manual trigger, because training a model and deploying one are
+  # two different actions.
+  image: alpine:3.22
+
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+
+  variables:
+    IMAGE_TAG:
+      value: ""
+      description: "Tag of the training image in ECR. Empty means this commit."
+    SAMPLE_ROWS:
+      value: ""
+      description: "Train on this many rows only. Empty means the whole file."
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "final-project" && $FINAL_STATE_MACHINE_ARN != null
+      when: manual
+      # A manual job that is never started must not hold the pipeline back.
+      allow_failure: true
+
+  before_script:
+    - apk add --no-cache aws-cli jq
+
+  script:
+    - |
+      set -eu
+
+      credentials="$(aws sts assume-role-with-web-identity \
+        --role-arn "$FINAL_AWS_ROLE_ARN" \
+        --role-session-name "gitlab-train-$CI_JOB_ID" \
+        --web-identity-token "$GITLAB_OIDC_TOKEN" \
+        --duration-seconds 3600 \
+        --query Credentials --output json)"
+
+      AWS_ACCESS_KEY_ID="$(echo "$credentials" | jq -r .AccessKeyId)"
+      AWS_SECRET_ACCESS_KEY="$(echo "$credentials" | jq -r .SecretAccessKey)"
+      AWS_SESSION_TOKEN="$(echo "$credentials" | jq -r .SessionToken)"
+      export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+
+      # The input contract of the ValidateInput function.
+      params="{}"
+      if [ -n "${SAMPLE_ROWS:-}" ]; then
+        params="$(jq -c --argjson v "$SAMPLE_ROWS" '.sample_rows = $v' <<<"$params")"
+      fi
+      input="$(jq -c \
+        --arg tag "${IMAGE_TAG:-$CI_COMMIT_SHA}" \
+        --arg sha "$CI_COMMIT_SHA" \
+        --argjson params "$params" \
+        '{image_tag: $tag, git_sha: $sha, params: $params}' <<<'{}')"
+
+      arn="$(aws stepfunctions start-execution \
+        --state-machine-arn "$FINAL_STATE_MACHINE_ARN" \
+        --name "gitlab-$CI_JOB_ID" \
+        --input "$input" \
+        --query executionArn --output text)"
+
+      for _ in $(seq 1 180); do
+        status="$(aws stepfunctions describe-execution \
+          --execution-arn "$arn" --query status --output text)"
+        [ "$status" = "RUNNING" ] || break
+        sleep 10
+      done
+
+      aws stepfunctions describe-execution --execution-arn "$arn" \
+        --query '{status: status, output: output, error: error, cause: cause}' \
+        --output json >execution.json
+
+      status="$(jq -r .status execution.json)"
+      if [ "$status" = "SUCCEEDED" ]; then
+        jq -r '.output | fromjson | .training' execution.json
+      else
+        jq -r '.error, .cause' execution.json >&2
+        echo "the training pipeline ended with status $status" >&2
+        exit 1
+      fi

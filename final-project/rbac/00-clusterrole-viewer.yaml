@@ -1,0 +1,66 @@
+# Read-only inside one namespace, and Secrets are not in the list.
+#
+# A Secret in these namespaces holds the Postgres password of MLflow or the
+# Grafana admin password. Nobody has to read one to look at a problem: the pods
+# get them mounted and Terraform is where they come from.
+#
+# It is a ClusterRole so that the same rules can be given in five namespaces
+# without being written five times, but it is always bound with a RoleBinding,
+# which keeps it inside one namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mlops-final-viewer
+  labels:
+    app.kubernetes.io/part-of: mlops-final
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - pods/status
+      - services
+      - configmaps
+      - endpoints
+      - events
+      - persistentvolumeclaims
+      - serviceaccounts
+      - limitranges
+      - resourcequotas
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets", "controllerrevisions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  # The Rollout and its analysis runs are the interesting objects while a model
+  # is being deployed, and the ArgoCD Applications say whether git and the
+  # cluster agree. Both live in the argoproj.io group.
+  - apiGroups: ["argoproj.io"]
+    resources:
+      - rollouts
+      - rollouts/status
+      - analysisruns
+      - analysistemplates
+      - experiments
+      - applications
+      - applicationsets
+      - appprojects
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  # "kubectl top pods"
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]

@@ -1,0 +1,28 @@
+# Loki, wave 1.
+#
+# Before Alloy in wave 2, so the collector has somewhere to send the first log
+# lines instead of retrying them.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.loki.repoURL | quote }}
+      chart: {{ .Values.charts.loki.name }}
+      targetRevision: {{ .Values.charts.loki.version | quote }}
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/loki/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

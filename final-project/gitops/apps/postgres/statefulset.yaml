@@ -1,0 +1,115 @@
+# PostgreSQL, the backend store of MLflow. It keeps experiments, runs,
+# parameters, metrics and the whole model registry. The model files themselves
+# go to S3.
+#
+# These are plain manifests, not a chart. The usual choice would be the Bitnami
+# PostgreSQL chart, but Bitnami took its free images off Docker Hub, so
+# "bitnami/postgresql" can no longer be pulled. The official image needs only
+# these two files.
+#
+# A StatefulSet, not a Deployment: it gives one stable PersistentVolumeClaim
+# that is not deleted with the pod, and it never starts a second pod on the
+# same volume during an update.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: mlops-system
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: mlops-final
+spec:
+  serviceName: postgres
+  replicas: 1
+  # The database is the one thing that must not run twice, so an update stops
+  # the old pod before it starts the new one.
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app: postgres
+    spec:
+      securityContext:
+        # The official image runs as user 70 (postgres) in the alpine variant.
+        # fsGroup makes Kubernetes hand the new EBS volume to that group,
+        # otherwise the first start fails with "permission denied".
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        runAsNonRoot: true
+      containers:
+        - name: postgres
+          image: postgres:17.11-alpine3.24
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            # Terraform creates this secret with a random password, so no
+            # credential is ever written into Git.
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-postgres
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-postgres
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-postgres
+                  key: database
+            # The data directory has to be a sub-folder of the mount point. An
+            # EBS volume arrives with a "lost+found" directory in its root, and
+            # initdb refuses to work in a directory that is not empty.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              # Kubernetes does not expand $(VAR) inside an exec probe, so the
+              # shell in the container reads the variables instead.
+              command:
+                - sh
+                - -c
+                - 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # No storageClassName on purpose: the EBS CSI add-on makes gp3 the
+        # default class of the cluster, and naming it here would only be one
+        # more place to keep in step with Terraform.
+        resources:
+          requests:
+            storage: 5Gi

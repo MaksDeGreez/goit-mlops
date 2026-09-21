@@ -1,0 +1,37 @@
+[project]
+name = "mlops-final-project"
+version = "0.1.0"
+description = "MLOps platform for a California Housing regression model"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[tool.uv]
+# The folder is a workspace for the tools only. There is nothing to build or
+# install, so uv must not treat it as a Python package.
+package = false
+
+[dependency-groups]
+# Tools used for code quality. Exact versions are pinned in uv.lock.
+dev = [
+    "pre-commit",
+    "pytest",
+    "ruff",
+    "yamllint",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+# E/F: pycodestyle and pyflakes, I: import order, B: common bugs,
+# UP: newer Python syntax, SIM: simpler code.
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.isort]
+# Every service under services/ is a small package of its own. Without this
+# ruff sorts its imports as if they came from PyPI.
+known-first-party = ["drift_monitor", "inference", "registry_ops", "training"]
+
+[tool.ruff.format]
+docstring-code-format = true

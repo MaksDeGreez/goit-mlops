@@ -1,0 +1,22 @@
+# The address MLflow connects to:
+# postgres.mlops-system.svc.cluster.local:5432
+#
+# Headless (clusterIP: None) because this is the governing Service of a
+# StatefulSet. DNS then answers with the address of the pod itself, and only
+# while that pod is ready, which is exactly what a single database needs.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: mlops-system
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: mlops-final
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

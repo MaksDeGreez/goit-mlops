@@ -1,0 +1,73 @@
+{{- if and .Values.canaryEnabled .Values.analysisEnabled .Values.modelVersion }}
+{{/*
+The rule that decides whether a canary may go on.
+
+It measures one thing: the share of 5xx answers among the requests the NEW
+model version served. 4xx is left out on purpose - a refused input or a rate
+limited client is a problem of the caller, and a canary must not be rolled back
+because someone sent bad JSON.
+
+The version comes in as an argument from the Rollout, so both versions are
+measured apart even though they sit behind one Service.
+*/}}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "inference.name" . }}-error-rate
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: model-version
+    - name: namespace
+  metrics:
+    - name: error-rate
+      interval: {{ .Values.analysisIntervalSeconds }}s
+      # The new pod has to start, load its model and be scraped twice before a
+      # rate can be computed at all.
+      initialDelay: {{ .Values.analysisInitialDelaySeconds }}s
+      # "count" is left out on purpose: with an interval and no count the
+      # measurement repeats until the rollout is finished, which is what a
+      # background analysis is for.
+      #
+      # failureLimit defaults to 0, which means a single bad measurement aborts
+      # the rollout. One scrape can be off for many harmless reasons, so the
+      # limit is written down here: the third failure in a row ends the canary.
+      failureLimit: {{ .Values.analysisFailureLimit }}
+      # Three cases are treated as "fine", and all three are about missing data,
+      # not about a good version:
+      #   len(result) == 0  no series at all. Prometheus has not scraped the new
+      #                     pod yet, or nobody sent a request. An empty answer
+      #                     must never abort a healthy rollout.
+      #   isNaN(result[0])  the pod is scraped but served nothing in the window,
+      #                     so the query divides 0 by 0.
+      #   result[0] <= max  there are errors, but not too many.
+      # The price of this choice is that a broken Prometheus looks like a green
+      # canary. That is why the README asks for the query to be checked in the
+      # Prometheus UI once, and why the faultRate demo is part of the proof.
+      successCondition: len(result) == 0 || isNaN(result[0]) || result[0] <= {{ .Values.analysisErrorRateMax }}
+      provider:
+        prometheus:
+          address: {{ .Values.prometheusAddress | quote }}
+          # "or vector(0)" is needed because a version with no 5xx at all has no
+          # 5xx series, and in PromQL an empty vector divided by anything stays
+          # empty. Without it a perfectly healthy canary and a canary nobody
+          # measured would look the same.
+          #
+          # The window is 2 minutes so that a 2 minute pause always holds enough
+          # scrapes. The only label this query needs Prometheus to add is
+          # "namespace"; the metric brings "model_version" and "status_class"
+          # itself. Fewer assumptions mean fewer ways to get an empty answer.
+          query: |
+            (
+              sum(rate(inference_requests_total{
+                namespace="{{ `{{args.namespace}}` }}",
+                model_version="{{ `{{args.model-version}}` }}",
+                status_class="5xx"}[2m]))
+              or vector(0)
+            )
+            /
+            sum(rate(inference_requests_total{
+              namespace="{{ `{{args.namespace}}` }}",
+              model_version="{{ `{{args.model-version}}` }}"}[2m]))
+{{- end }}

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: bootstrap
+description: App of apps. One Argo CD Application per platform component.
+type: application
+version: 0.1.0
+# There is no appVersion: this chart ships no application of its own, only
+# Application objects that point at other charts and at this repository.

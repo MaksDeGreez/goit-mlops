@@ -1,0 +1,132 @@
+# Loki: the log store.
+#
+# The inference service, the drift job and registry-ops all print one JSON
+# object per line. Alloy collects those lines, Loki keeps them, Grafana shows
+# them, and the drift job reads its own input back out of Loki.
+#
+# The chart can build anything from one pod to a microservice cluster. This is
+# the smallest form: one pod, one disk, no object storage and no cache. The
+# defaults of the chart are made for a real installation and would ask for far
+# more memory than this cluster has - the chunks cache alone requests 9.8 GiB.
+
+# Keeps the Service called "loki", whatever the Application is named:
+# http://loki.monitoring.svc.cluster.local:3100
+fullnameOverride: loki
+
+deploymentMode: Monolithic
+
+loki:
+  # No tenants. Everything in this cluster belongs to the same project, and a
+  # tenant header on every query would only be in the way.
+  auth_enabled: false
+
+  commonConfig:
+    # One copy of every log line, because there is one pod. The default of 3
+    # would make every write fail.
+    replication_factor: 1
+
+  storage:
+    type: filesystem
+
+  # A schema is not optional: Loki refuses to start without one. v13 with the
+  # TSDB index is the current combination.
+  schemaConfig:
+    configs:
+      - from: "2026-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  limits_config:
+    retention_period: 168h  # seven days
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    max_cache_freshness_per_query: 10m
+    # The drift job asks for one hour of prediction lines and 5000 of them fit
+    # easily, but the default query limit is small, so it is raised here.
+    max_entries_limit_per_query: 10000
+    volume_enabled: true
+
+  compactor:
+    working_directory: /var/loki/compactor
+    # Without this Loki keeps every line for ever and the disk fills up.
+    retention_enabled: true
+    delete_request_store: filesystem
+
+  # Loki phones home with usage statistics unless this is off.
+  analytics:
+    reporting_enabled: false
+
+  # Tracks patterns in log lines for the Grafana Explore view. It is another
+  # component to run and nothing here uses it.
+  pattern_ingester:
+    enabled: false
+
+singleBinary:
+  # The chart ships 0 replicas by default, which would install nothing.
+  replicas: 1
+
+  # The sidecar watches ConfigMaps for Loki alerting rules. The alert rules of
+  # this project are in Grafana, so it is not needed.
+  sidecar: false
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    # No storageClass, so the gp3 default class of the cluster is used.
+
+  # One pod cannot be disrupted and still serve, and a budget on a single
+  # replica only blocks node drains.
+  podDisruptionBudget:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+# Everything below belongs to the bigger deployment modes and must be off.
+
+# The three scalable targets. They are only used in SimpleScalable mode, but
+# the chart still creates them with replicas from its defaults.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# An nginx in front of Loki that routes read and write paths to different
+# services. With one pod there is nothing to route.
+gateway:
+  enabled: false
+
+# Memcached. resultsCache asks for 1.2 GiB and chunksCache for 9.8 GiB, which
+# alone is more memory than a node has.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# A pod that writes log lines to Loki and reads them back to check that the
+# pipeline works. Useful in production, noise here.
+lokiCanary:
+  enabled: false
+
+# Helm test pod.
+test:
+  enabled: false
+
+# The chart can install its own Alloy or Grafana Agent to collect logs. This
+# project runs Alloy as a separate Application, configured for its own log
+# format.
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false

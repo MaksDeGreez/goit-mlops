@@ -1,0 +1,34 @@
+# The drift job, wave 3.
+#
+# A CronJob in mlops-system. It reads the prediction log lines of the
+# production pods back out of Loki, compares them with the reference sample
+# and pushes the result to the PushGateway, so it needs both addresses and the
+# image registry.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: drift-monitor
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: {{ .Values.basePath }}/gitops/charts/drift-monitor
+    helm:
+      releaseName: drift-monitor
+      parameters:
+        - name: imageRegistry
+          value: {{ .Values.imageRegistry | quote }}
+        - name: lokiUrl
+          value: {{ .Values.addresses.loki | quote }}
+        - name: pushgatewayUrl
+          value: {{ .Values.addresses.pushgateway | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.platform }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

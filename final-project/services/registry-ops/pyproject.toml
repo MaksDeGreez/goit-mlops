@@ -1,0 +1,31 @@
+[project]
+name = "registry-ops"
+version = "0.1.0"
+description = "Command line tool that moves model versions in the MLflow Model Registry"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    # Only the registry client is needed: no training, no model loading. The
+    # skinny build has no pandas, numpy, flask or sqlalchemy, so the image is
+    # much smaller than the training one.
+    "mlflow-skinny>=3.16.1,<4",
+]
+
+[tool.uv]
+# The tool is run as "python -m registry_ops", not installed as a package.
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+    # The tests keep the registry in a SQLite file. The skinny build talks to
+    # an HTTP tracking server and therefore does not ship a database driver,
+    # so the two packages the SQLAlchemy store needs are added here.
+    "alembic>=1.17,<2",
+    "sqlalchemy>=2.0,<3",
+]
+
+[tool.pytest.ini_options]
+# Put the service folder on sys.path so "import registry_ops" works without
+# installing the package.
+pythonpath = ["."]
+testpaths = ["tests"]

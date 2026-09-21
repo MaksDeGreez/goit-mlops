@@ -1,0 +1,13 @@
+apiVersion: v2
+name: drift-monitor
+description: CronJob that compares the live predictions with the reference sample and pushes drift metrics.
+type: application
+
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - mlops
+  - drift
+  - evidently
+home: https://github.com/MaksDeGreez/goit-mlops

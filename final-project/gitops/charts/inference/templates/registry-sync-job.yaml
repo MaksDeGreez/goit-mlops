@@ -1,0 +1,92 @@
+{{- if and .Values.registrySyncEnabled .Values.modelVersion }}
+{{/*
+Makes the MLflow Model Registry agree with git.
+
+Git is the only place where the production version is decided. The registry
+still has to say the same thing, because the MLflow UI is where a person looks
+first and because the rollback command reads the "previous-production" alias.
+This Job runs "registry_ops sync", which promotes the version, archives the one
+that was in production, and does nothing at all when the two already agree.
+
+Why PostSync and not PreSync:
+
+* ArgoCD runs PostSync hooks only after the Application is Healthy, and Argo
+  Rollouts reports a Rollout as Healthy only when the canary is finished. So
+  the registry says "Production" when the new version really serves all of the
+  traffic, not while it is being tried out on one pod.
+* If the canary is aborted, the Application stays Degraded, this hook never
+  runs, and the registry keeps naming the old version as the production one.
+  That is the truth: the old version is what the pods went back to.
+
+The hook is skipped while modelVersion is empty, which is the case on the very
+first deploy. See the chart README for how the first version gets in.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "inference.name" . }}-registry-sync
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    # Delete the Job of the previous sync just before creating this one. The
+    # finished Job therefore stays until the next deployment, which gives the
+    # log collector all the time it needs to pick up the audit line.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  # One day is long after the logs are collected and long before the Job is in
+  # anybody's way. The next sync deletes it anyway.
+  ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        # The log collector turns this label into app="registry-ops" in Loki,
+        # which is what the audit panel of the Grafana dashboard queries.
+        app.kubernetes.io/name: registry-ops
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: mlops-final
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "inference.name" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "inference.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: registry-ops
+          image: {{ include "inference.registryOpsImage" . }}
+          imagePullPolicy: IfNotPresent
+          # The image already starts "python -m registry_ops"; command and args
+          # are written out in full so that the whole command line is visible
+          # here. The tool takes --actor and --git-sha before the subcommand,
+          # so those two are passed as environment variables instead.
+          command: ["python", "-m", "registry_ops"]
+          args: ["sync", "--production-version", {{ .Values.modelVersion | quote }}]
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.mlflowTrackingUri | quote }}
+            - name: MODEL_NAME
+              value: {{ .Values.modelName | quote }}
+            - name: ACTOR
+              value: argocd
+            # The Application passes $ARGOCD_APP_REVISION here, so the audit
+            # line names the commit that asked for the change.
+            - name: GIT_SHA
+              value: {{ .Values.gitSha | default "unknown" | quote }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            {{- include "inference.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+{{- end }}

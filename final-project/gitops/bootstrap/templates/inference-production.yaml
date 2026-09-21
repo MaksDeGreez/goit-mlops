@@ -1,0 +1,42 @@
+# The inference service in production, wave 3.
+#
+# Production pins a model version number in gitops/envs/production.yaml.
+# Changing that number is the whole promotion: Argo Rollouts then runs the
+# canary and a hook Job moves the alias in the model registry. A rollback is
+# a git revert of that one commit.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inference-production
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision | quote }}
+    path: {{ .Values.basePath }}/gitops/charts/inference
+    helm:
+      releaseName: inference
+      valueFiles:
+        - ../../envs/production.yaml
+      parameters:
+        - name: imageRegistry
+          value: {{ .Values.imageRegistry | quote }}
+        - name: mlflowTrackingUri
+          value: {{ .Values.addresses.mlflow | quote }}
+        - name: prometheusAddress
+          value: {{ .Values.addresses.prometheus | quote }}
+        # The commit this sync is applying. Argo CD replaces the variable
+        # itself before it calls Helm, so the registry hook Job can write the
+        # commit that asked for the promotion into the audit line. Staging
+        # does not need it: nothing there changes the registry.
+        - name: gitSha
+          value: "$ARGOCD_APP_REVISION"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.production }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

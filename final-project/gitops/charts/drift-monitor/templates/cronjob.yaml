@@ -1,0 +1,97 @@
+{{/*
+The drift check, run on a schedule.
+
+It reads the prediction log lines of the production pods back out of Loki,
+compares the eight features with the reference sample that was cut from the
+training split, and pushes the result to the PushGateway. Finding drift is not
+an error: the job exits 0 and Grafana decides what to alert on. A non-zero exit
+means the check could not be made at all.
+*/}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "drift-monitor.name" . }}
+  labels:
+    {{- include "drift-monitor.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  # A run takes seconds, but if one ever hangs the next one must not start next
+  # to it: two runs would push the same metric under the same job label and the
+  # dashboard would show whichever finished last.
+  concurrencyPolicy: Forbid
+  # Skip a run that is more than this late instead of catching up on all the
+  # runs that were missed while the cluster was busy.
+  startingDeadlineSeconds: {{ .Values.startingDeadlineSeconds }}
+  # Finished jobs are kept instead of being deleted after a timeout, so their
+  # log lines stay readable with kubectl for as long as the next few runs.
+  successfulJobsHistoryLimit: {{ .Values.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "drift-monitor.labels" . | nindent 8 }}
+    spec:
+      backoffLimit: {{ .Values.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "drift-monitor.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "drift-monitor.name" . }}
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: drift-monitor
+              image: {{ include "drift-monitor.image" . }}
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: LOKI_URL
+                  value: {{ .Values.lokiUrl | quote }}
+                - name: LOKI_QUERY
+                  value: {{ .Values.lokiQuery | quote }}
+                - name: WINDOW_MINUTES
+                  value: {{ .Values.windowMinutes | quote }}
+                - name: LOKI_LIMIT
+                  value: {{ .Values.lokiLimit | quote }}
+                - name: MIN_SAMPLES
+                  value: {{ .Values.minSamples | quote }}
+                - name: PUSHGATEWAY_URL
+                  value: {{ .Values.pushgatewayUrl | quote }}
+                - name: PUSH_JOB
+                  value: {{ .Values.pushJob | quote }}
+                # Empty falls back to the copy inside the image, which is the
+                # file the model was really trained on.
+                - name: REFERENCE_PATH
+                  value: {{ .Values.referencePath | quote }}
+              resources:
+                requests:
+                  cpu: {{ .Values.cpuRequest | quote }}
+                  memory: {{ .Values.memoryRequest | quote }}
+                limits:
+                  {{- if .Values.cpuLimit }}
+                  cpu: {{ .Values.cpuLimit | quote }}
+                  {{- end }}
+                  memory: {{ .Values.memoryLimit | quote }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                # pandas and Evidently write caches into HOME, and the image
+                # points both HOME and TMPDIR at /tmp. That makes /tmp the only
+                # writable path, so the root filesystem can stay read only.
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 256Mi

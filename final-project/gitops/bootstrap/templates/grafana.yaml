@@ -1,0 +1,29 @@
+# Grafana, wave 2.
+#
+# After Prometheus and Loki, because the two data sources are provisioned with
+# their addresses and Grafana marks a data source it cannot reach as broken on
+# the first health check.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: {{ .Values.argocdNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.charts.grafana.repoURL | quote }}
+      chart: {{ .Values.charts.grafana.name }}
+      targetRevision: {{ .Values.charts.grafana.version | quote }}
+      helm:
+        releaseName: grafana
+        valueFiles:
+          - $values/{{ .Values.basePath }}/gitops/apps/grafana/values.yaml
+    {{- include "bootstrap.valuesSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespaces.monitoring }}
+  {{- include "bootstrap.syncPolicy" (dict) | nindent 2 }}

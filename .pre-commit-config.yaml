@@ -1,0 +1,66 @@
+# Code quality hooks for the final project.
+#
+# pre-commit only reads this file from the root of the repository, so it lives
+# here. The homework folders (lesson-3 ... lesson-10) are already graded and
+# must not change, so the "files" pattern below keeps every hook inside
+# final-project/ and the few shared files that belong to it.
+#
+# Run from the root of the repository (after "uv sync" in final-project/):
+#   uv run --project final-project pre-commit install
+#   uv run --project final-project pre-commit run --all-files
+
+files: |
+  (?x)^(
+    final-project/.*
+    |\.pre-commit-config\.yaml
+    |\.yamllint
+    |\.github/workflows/final-project-.*\.yml
+  )$
+
+repos:
+  # Small general checks that catch the most common mistakes.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        # Helm templates are Go templates and cannot be parsed as YAML.
+        exclude: (^|/)templates/
+      - id: check-added-large-files
+        args: [--maxkb=2048]
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  # Python linter and formatter. The rules are in final-project/pyproject.toml.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # YAML style. The config is .yamllint in the root of the repository.
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint, --format, parsable]
+
+  # Secret scanner. It checks what is about to be committed, which is exactly
+  # the moment a key must be stopped in a public repository.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # Terraform formatting. A local hook is enough here: terraform is already
+  # installed, and this avoids pulling in a large third party hook repository.
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: terraform fmt
+        description: Format Terraform files
+        entry: terraform fmt
+        language: system
+        files: \.tf$

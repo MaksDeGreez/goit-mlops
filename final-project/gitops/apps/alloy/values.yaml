@@ -1,0 +1,99 @@
+# Grafana Alloy: the log collector.
+#
+# One pod on every node. It asks the Kubernetes API which pods run on its own
+# node, reads their stdout and sends every line to Loki with four labels:
+# namespace, app, pod, container.
+#
+# Alloy replaces Promtail, which reached end of life in March 2026.
+
+controller:
+  type: daemonset
+
+# The chart already gives the service account the rights this config needs:
+# "pods" and "pods/log" for reading the logs, "pods" for finding them.
+rbac:
+  create: true
+
+alloy:
+  # Alloy sends anonymous usage statistics unless this is off.
+  enableReporting: false
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  configMap:
+    create: true
+    content: |-
+      // Pods on this node only. The chart sets HOSTNAME to the node name, so
+      // every Alloy pod picks up its own share and no line is sent twice.
+      discovery.kubernetes "pods" {
+        role = "pod"
+
+        selectors {
+          role  = "pod"
+          field = "spec.nodeName=" + sys.env("HOSTNAME")
+        }
+      }
+
+      // The labels every log line gets. Keep this list short: in Loki each
+      // combination of label values is a separate stream, and a label with
+      // many values (a request id, for example) makes queries slow.
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // "app" comes from the label app.kubernetes.io/name. Charts that are
+        // older than that convention only set "app", so that one is the
+        // fallback. The regex reads the two values joined by ";" and keeps
+        // whichever of them is there.
+        rule {
+          source_labels = [
+            "__meta_kubernetes_pod_label_app_kubernetes_io_name",
+            "__meta_kubernetes_pod_label_app",
+          ]
+          separator    = ";"
+          regex        = "([^;]+);.*|;(.+)"
+          replacement  = "${1}${2}"
+          target_label = "app"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+      }
+
+      // Read the logs through the Kubernetes API. The other way would be to
+      // mount /var/log from the host, which needs a privileged mount; this
+      // cluster is small enough that the API is the simpler choice.
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+
+configReloader:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi

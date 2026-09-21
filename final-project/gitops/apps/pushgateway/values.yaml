@@ -1,0 +1,27 @@
+# Prometheus PushGateway.
+#
+# The drift job is a CronJob: it runs for a few seconds and is gone long before
+# Prometheus would scrape it. It pushes its numbers here instead, and
+# Prometheus scrapes PushGateway.
+
+# Without this the Service would be called
+# "pushgateway-prometheus-pushgateway". The short name gives the address the
+# drift job uses: http://pushgateway.monitoring.svc.cluster.local:9091
+fullnameOverride: pushgateway
+
+service:
+  type: ClusterIP
+  port: 9091
+
+# Pushed values are kept in memory only. They are re-pushed on the next run of
+# the job, and Prometheus has already stored the history, so a restart costs
+# nothing and there is no volume to pay for.
+persistentVolume:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi

@@ -618,7 +618,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{namespace=\"mlops-system\"} | json | event=\"model_registry_audit\"",
+          "expr": "{app=\"registry-ops\"} | json | event=\"model_registry_audit\"",
           "editorMode": "code",
           "queryType": "range"
         }

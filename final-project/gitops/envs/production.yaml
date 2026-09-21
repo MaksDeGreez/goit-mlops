@@ -91,7 +91,7 @@ analysisFailureLimit: 2
 
 # The PostSync hook that keeps the MLflow registry in step with this file.
 registrySyncEnabled: true
-registryOpsImageTag: 8f55c4ffbb729218427eb1a87f89af9e78e20301
+registryOpsImageTag: 5f970f6e02ae7028f65f02e6451edae582e5fae7
 
 # Keep eight pods while a node is drained.
 pdbEnabled: true

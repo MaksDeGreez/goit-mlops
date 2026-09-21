@@ -83,6 +83,10 @@ the chart would own the same object and fight over it on every sync.
 
 ## Proof: `kubectl auth can-i`
 
+`scripts/check_rbac.sh` runs every line of the tables below against the cluster and compares the
+answer with the expected one. Subresources are written with `--subresource=`: the short form
+`pods/portforward` is answered with "no" by kubectl for some verbs even when the rule exists.
+
 Run these with an account that may impersonate (the cluster creator). The expected answer is next to
 each line; the denials matter as much as the allowances.
 
@@ -99,28 +103,28 @@ S="--as=test --as-group=stepfunctions-runners"
 | `kubectl auth can-i create rollouts.argoproj.io -n staging $E` | yes |
 | `kubectl auth can-i delete pods -n staging $E` | yes |
 | `kubectl auth can-i get secrets -n staging $E` | yes |
-| `kubectl auth can-i create pods/exec -n staging $E` | yes |
+| `kubectl auth can-i create pods --subresource=exec -n staging $E` | yes |
 
 **mlops-engineer, production — limited**
 
 | Command | Expected |
 |---|---|
 | `kubectl auth can-i get pods -n production $E` | yes |
-| `kubectl auth can-i get pods/log -n production $E` | yes |
-| `kubectl auth can-i create pods/portforward -n production $E` | yes |
-| `kubectl auth can-i patch rollouts.argoproj.io/status -n production $E` | yes |
+| `kubectl auth can-i get pods --subresource=log -n production $E` | yes |
+| `kubectl auth can-i create pods --subresource=portforward -n production $E` | yes |
+| `kubectl auth can-i patch rollouts.argoproj.io --subresource=status -n production $E` | yes |
 | `kubectl auth can-i get secrets -n production $E` | **no** |
 | `kubectl auth can-i patch rollouts.argoproj.io -n production $E` | **no** |
 | `kubectl auth can-i delete rollouts.argoproj.io -n production $E` | **no** |
-| `kubectl auth can-i create pods/exec -n production $E` | **no** |
+| `kubectl auth can-i create pods --subresource=exec -n production $E` | **no** |
 | `kubectl auth can-i delete pods -n production $E` | **no** |
 
 **mlops-engineer, the platform namespaces**
 
 | Command | Expected |
 |---|---|
-| `kubectl auth can-i get pods/log -n mlops-system $E` | yes |
-| `kubectl auth can-i create pods/portforward -n monitoring $E` | yes |
+| `kubectl auth can-i get pods --subresource=log -n mlops-system $E` | yes |
+| `kubectl auth can-i create pods --subresource=portforward -n monitoring $E` | yes |
 | `kubectl auth can-i get applications.argoproj.io -n argocd $E` | yes |
 | `kubectl auth can-i create jobs -n mlops-system $E` | **no** |
 | `kubectl auth can-i get secrets -n mlops-system $E` | **no** |
@@ -130,12 +134,12 @@ S="--as=test --as-group=stepfunctions-runners"
 | Command | Expected |
 |---|---|
 | `kubectl auth can-i get pods -n production $V` | yes |
-| `kubectl auth can-i get pods/log -n production $V` | yes |
+| `kubectl auth can-i get pods --subresource=log -n production $V` | yes |
 | `kubectl auth can-i get rollouts.argoproj.io -n production $V` | yes |
 | `kubectl auth can-i get applications.argoproj.io -n argocd $V` | yes |
 | `kubectl auth can-i get secrets -n production $V` | **no** |
-| `kubectl auth can-i create pods/portforward -n staging $V` | **no** |
-| `kubectl auth can-i create pods/exec -n production $V` | **no** |
+| `kubectl auth can-i create pods --subresource=portforward -n staging $V` | **no** |
+| `kubectl auth can-i create pods --subresource=exec -n production $V` | **no** |
 | `kubectl auth can-i delete pods -n staging $V` | **no** |
 | `kubectl auth can-i patch applications.argoproj.io -n argocd $V` | **no** |
 
@@ -145,7 +149,7 @@ S="--as=test --as-group=stepfunctions-runners"
 |---|---|
 | `kubectl auth can-i create jobs -n mlops-system $S` | yes |
 | `kubectl auth can-i delete jobs -n mlops-system $S` | yes |
-| `kubectl auth can-i get pods/log -n mlops-system $S` | yes |
+| `kubectl auth can-i get pods --subresource=log -n mlops-system $S` | yes |
 | `kubectl auth can-i create jobs -n production $S` | **no** |
 | `kubectl auth can-i get secrets -n mlops-system $S` | **no** |
 
